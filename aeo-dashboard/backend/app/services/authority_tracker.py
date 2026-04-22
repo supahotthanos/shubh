@@ -139,69 +139,40 @@ class AuthorityTrackerService:
         return False, None
 
     async def _fetch_webgraph_metrics(self, domain: str) -> Dict:
-        """
-        Fetch metrics from Common Crawl WebGraph.
+        """WebGraph HC/PageRank. Uses provider (mock or composite-real)."""
+        from app.providers import get_authority_provider
 
-        The WebGraph provides:
-        - Harmonic Centrality (HC) - measures how "central" a domain is
-        - PageRank - classic link authority metric
-        """
-        # In production, this would query the Common Crawl WebGraph API
-        # or a cached/indexed version of the data
-        #
-        # The WebGraph data is available at:
-        # https://commoncrawl.org/web-graphs
-
-        # Placeholder - would integrate with actual data source
+        data = await get_authority_provider().authority_for(domain)
         return {
-            "hc_rank": None,
-            "hc_score": None,
-            "pagerank": None,
-            "pagerank_rank": None,
+            "hc_rank": data.hc_rank,
+            "hc_score": data.hc_score,
+            "pagerank": data.pagerank_score,
+            "pagerank_rank": data.pagerank_rank,
         }
 
     async def _fetch_seo_metrics(self, domain: str) -> Dict:
-        """Fetch metrics from SEO tools (Ahrefs, Moz, etc.)"""
-        metrics = {}
+        """Pull DR / DA / backlinks via the authority provider."""
+        from app.providers import get_authority_provider
 
-        if self.ahrefs_key:
-            ahrefs_data = await self._fetch_ahrefs_metrics(domain)
-            metrics.update(ahrefs_data)
-
-        if self.moz_key:
-            moz_data = await self._fetch_moz_metrics(domain)
-            metrics.update(moz_data)
-
-        return metrics
+        data = await get_authority_provider().authority_for(domain)
+        return {
+            "domain_rating": data.domain_rating,
+            "domain_authority": data.domain_authority,
+            "referring_domains": data.referring_domains,
+            "total_backlinks": data.total_backlinks,
+        }
 
     async def _fetch_ahrefs_metrics(self, domain: str) -> Dict:
-        """Fetch Domain Rating and backlink data from Ahrefs"""
-        # Placeholder for Ahrefs API integration
-        # API docs: https://ahrefs.com/api
-        return {
-            "domain_rating": None,
-            "referring_domains": None,
-            "total_backlinks": None,
-        }
+        return await self._fetch_seo_metrics(domain)
 
     async def _fetch_moz_metrics(self, domain: str) -> Dict:
-        """Fetch Domain Authority from Moz"""
-        # Placeholder for Moz API integration
-        # API docs: https://moz.com/products/api
-        return {
-            "domain_authority": None,
-        }
+        return await self._fetch_seo_metrics(domain)
 
     async def _check_wikipedia_citation(self, domain: str) -> Dict:
-        """Check if domain is cited on Wikipedia"""
-        # This would use Wikipedia's API or a specialized service
-        # to check if the domain appears in Wikipedia citations
-        #
-        # Having a Wikipedia citation is a strong trust signal for AI systems
-        return {
-            "has_citation": False,
-            "url": None,
-        }
+        from app.providers import get_wikipedia_provider
+
+        has, url = await get_wikipedia_provider().has_citation(domain)
+        return {"has_citation": has, "url": url}
 
     async def compare_competitors(
         self, client_domain: str, competitor_domains: List[str]

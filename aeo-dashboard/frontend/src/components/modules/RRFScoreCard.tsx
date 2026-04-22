@@ -1,102 +1,95 @@
 'use client'
 
-import { Target, Check, AlertTriangle } from 'lucide-react'
+import { AlertTriangle, Check } from 'lucide-react'
+import Link from 'next/link'
 
-interface RRFEntry {
-  keyword: string
-  score: number
-  meetsThreshold: boolean
-  appearances: number
-  avgRank: number
-}
+import { EmptyState } from '@/components/ui/EmptyState'
+import { Skeleton } from '@/components/ui/Skeleton'
+import { useRRFScores, useRRFQuickReference } from '@/hooks/useKeywords'
 
-const rrfData: RRFEntry[] = [
-  { keyword: 'best crm software', score: 0.028, meetsThreshold: true, appearances: 3, avgRank: 35 },
-  { keyword: 'project management tools', score: 0.024, meetsThreshold: true, appearances: 2, avgRank: 28 },
-  { keyword: 'email marketing platform', score: 0.018, meetsThreshold: false, appearances: 2, avgRank: 52 },
-  { keyword: 'seo automation tool', score: 0.015, meetsThreshold: false, appearances: 1, avgRank: 45 },
-]
+const THRESHOLD = 0.02
 
-const THRESHOLD = 0.020
+export function RRFScoreCard({ clientId }: { clientId: number | null }) {
+  const { data, isLoading } = useRRFScores(clientId)
+  const { data: quickRef } = useRRFQuickReference()
 
-export function RRFScoreCard() {
-  const meetingThreshold = rrfData.filter(k => k.meetsThreshold).length
-  const total = rrfData.length
+  const rows = (data ?? []).slice(0, 5)
+  const meeting = rows.filter((r: any) => r.meets_threshold).length
 
   return (
     <div className="card">
       <div className="card-header">
         <div>
-          <h2 className="card-title">RRF Visibility Score</h2>
-          <p className="text-sm text-dark-400 mt-1">
-            k=60, threshold=0.020
-          </p>
+          <h2 className="card-title">RRF visibility</h2>
+          <p className="text-sm text-dark-400 mt-1">k=60, threshold=0.020</p>
         </div>
         <div className="badge badge-info">
-          {meetingThreshold}/{total} at threshold
+          {meeting}/{rows.length} at τ
         </div>
       </div>
 
-      {/* Quick Reference */}
-      <div className="mt-4 p-3 bg-dark-800 rounded-lg">
-        <p className="text-xs text-dark-400 mb-2">Quick Reference</p>
-        <div className="grid grid-cols-2 gap-2 text-xs">
-          <div className="flex justify-between">
-            <span className="text-dark-500">2x at ≤40:</span>
-            <span className="text-green-400">0.020 ✓</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-dark-500">3x at ≤90:</span>
-            <span className="text-green-400">0.020 ✓</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-dark-500">4x at ≤140:</span>
-            <span className="text-green-400">0.020 ✓</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-dark-500">1x #1 + 1x ≤80:</span>
-            <span className="text-green-400">0.024 ✓</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Keywords List */}
-      <div className="mt-4 space-y-3">
-        {rrfData.map((entry) => (
-          <div
-            key={entry.keyword}
-            className="flex items-center justify-between p-3 bg-dark-800 rounded-lg"
-          >
-            <div className="flex items-center gap-3">
-              {entry.meetsThreshold ? (
-                <Check className="w-4 h-4 text-green-400" />
-              ) : (
-                <AlertTriangle className="w-4 h-4 text-yellow-400" />
-              )}
-              <div>
-                <p className="text-sm font-medium text-white">{entry.keyword}</p>
-                <p className="text-xs text-dark-500">
-                  {entry.appearances}x appearances, avg rank #{entry.avgRank}
-                </p>
+      {quickRef && (
+        <div className="mt-4 p-3 bg-dark-800 rounded-lg">
+          <p className="text-xs text-dark-400 mb-2">Quick reference</p>
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            {quickRef.slice(0, 4).map((row: any) => (
+              <div key={row.appearances} className="flex justify-between">
+                <span className="text-dark-500">
+                  {row.appearances}× at ≤{row.max_rank_each}:
+                </span>
+                <span className={row.meets_threshold ? 'text-green-400' : 'text-dark-300'}>
+                  {row.guaranteed_score.toFixed(4)} {row.meets_threshold && '✓'}
+                </span>
               </div>
-            </div>
-            <div className="text-right">
-              <p className={`text-sm font-mono ${entry.meetsThreshold ? 'text-green-400' : 'text-yellow-400'}`}>
-                {entry.score.toFixed(4)}
-              </p>
-              {!entry.meetsThreshold && (
-                <p className="text-xs text-dark-500">
-                  need +{(THRESHOLD - entry.score).toFixed(4)}
-                </p>
-              )}
-            </div>
+            ))}
           </div>
-        ))}
+        </div>
+      )}
+
+      <div className="mt-4 space-y-3">
+        {isLoading ? (
+          <>
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+          </>
+        ) : rows.length === 0 ? (
+          <EmptyState title="No RRF data" description="Add keywords and calculate RRF scores on the Keywords page." />
+        ) : (
+          rows.map((entry: any) => (
+            <div
+              key={entry.id}
+              className="flex items-center justify-between p-3 bg-dark-800 rounded-lg"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                {entry.meets_threshold ? (
+                  <Check className="w-4 h-4 text-green-400 flex-shrink-0" />
+                ) : (
+                  <AlertTriangle className="w-4 h-4 text-yellow-400 flex-shrink-0" />
+                )}
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-white truncate">
+                    {entry.keyword_text ?? 'keyword'}
+                  </p>
+                  <p className="text-xs text-dark-500">
+                    {entry.total_appearances}× appearances · avg rank #{Math.round(entry.avg_rank ?? 0)}
+                  </p>
+                </div>
+              </div>
+              <p
+                className={`text-sm font-mono ${
+                  entry.meets_threshold ? 'text-green-400' : 'text-yellow-400'
+                }`}
+              >
+                {entry.raw_score?.toFixed(4)}
+              </p>
+            </div>
+          ))
+        )}
       </div>
 
-      <button className="mt-4 w-full btn btn-secondary text-sm">
-        View All Keywords
-      </button>
+      <Link href="/keywords" className="mt-4 block">
+        <button className="w-full btn btn-secondary text-sm">View all keywords</button>
+      </Link>
     </div>
   )
 }

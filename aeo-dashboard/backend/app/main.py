@@ -1,39 +1,44 @@
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
+from app.api.deps import get_current_user
+from app.api.routes import (
+    auth,
+    authority,
+    campaigns,
+    citations,
+    clients,
+    competitors,
+    content,
+    dashboard,
+    keywords,
+    prompts,
+    reports,
+)
 from app.core.config import settings
 from app.core.database import init_db
-from app.api.routes import (
-    clients,
-    prompts,
-    citations,
-    keywords,
-    content,
-    campaigns,
-    competitors,
-    reports,
-    dashboard,
-)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
-    await init_db()
+    # `init_db` is idempotent; useful for fresh dev envs but production should
+    # use Alembic. See `alembic upgrade head`.
+    try:
+        await init_db()
+    except Exception:
+        # Alembic has already created the schema — don't block startup.
+        pass
     yield
-    # Shutdown
-    pass
 
 
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
-    description="AEO/GEO Dashboard API - AI Citation Tracking and Optimization",
+    description="AEO/GEO Dashboard API — AI Citation Tracking and Optimization",
     lifespan=lifespan,
 )
 
-# CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
@@ -42,25 +47,26 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include routers
-app.include_router(dashboard.router, prefix=f"{settings.API_PREFIX}/dashboard", tags=["Dashboard"])
-app.include_router(clients.router, prefix=f"{settings.API_PREFIX}/clients", tags=["Clients"])
-app.include_router(prompts.router, prefix=f"{settings.API_PREFIX}/prompts", tags=["Prompts"])
-app.include_router(citations.router, prefix=f"{settings.API_PREFIX}/citations", tags=["Citations"])
-app.include_router(keywords.router, prefix=f"{settings.API_PREFIX}/keywords", tags=["Keywords & RRF"])
-app.include_router(content.router, prefix=f"{settings.API_PREFIX}/content", tags=["Content & Freshness"])
-app.include_router(campaigns.router, prefix=f"{settings.API_PREFIX}/campaigns", tags=["Campaigns"])
-app.include_router(competitors.router, prefix=f"{settings.API_PREFIX}/competitors", tags=["Competitors"])
-app.include_router(reports.router, prefix=f"{settings.API_PREFIX}/reports", tags=["Reports"])
+# Auth is unauthenticated.
+app.include_router(auth.router, prefix=f"{settings.API_PREFIX}/auth", tags=["Auth"])
+
+# Every other route requires a valid JWT.
+_auth = [Depends(get_current_user)]
+app.include_router(dashboard.router, prefix=f"{settings.API_PREFIX}/dashboard", tags=["Dashboard"], dependencies=_auth)
+app.include_router(clients.router, prefix=f"{settings.API_PREFIX}/clients", tags=["Clients"], dependencies=_auth)
+app.include_router(prompts.router, prefix=f"{settings.API_PREFIX}/prompts", tags=["Prompts"], dependencies=_auth)
+app.include_router(citations.router, prefix=f"{settings.API_PREFIX}/citations", tags=["Citations"], dependencies=_auth)
+app.include_router(keywords.router, prefix=f"{settings.API_PREFIX}/keywords", tags=["Keywords & RRF"], dependencies=_auth)
+app.include_router(content.router, prefix=f"{settings.API_PREFIX}/content", tags=["Content & Freshness"], dependencies=_auth)
+app.include_router(campaigns.router, prefix=f"{settings.API_PREFIX}/campaigns", tags=["Campaigns"], dependencies=_auth)
+app.include_router(competitors.router, prefix=f"{settings.API_PREFIX}/competitors", tags=["Competitors"], dependencies=_auth)
+app.include_router(authority.router, prefix=f"{settings.API_PREFIX}/authority", tags=["Authority"], dependencies=_auth)
+app.include_router(reports.router, prefix=f"{settings.API_PREFIX}/reports", tags=["Reports"], dependencies=_auth)
 
 
 @app.get("/")
 async def root():
-    return {
-        "name": settings.APP_NAME,
-        "version": settings.APP_VERSION,
-        "status": "running",
-    }
+    return {"name": settings.APP_NAME, "version": settings.APP_VERSION, "status": "running"}
 
 
 @app.get("/health")

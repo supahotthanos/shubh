@@ -407,10 +407,25 @@ class ReportGeneratorService:
         }
 
     async def export_to_pdf(self, report: GeneratedReport) -> bytes:
-        """Export report to PDF format"""
-        # In production, this would use WeasyPrint or similar
-        # to generate a styled PDF document
-        raise NotImplementedError("PDF export requires WeasyPrint integration")
+        """Render report as a styled PDF via WeasyPrint + Jinja2."""
+        try:
+            from jinja2 import Environment, FileSystemLoader, select_autoescape
+            from weasyprint import HTML
+        except Exception as exc:  # pragma: no cover
+            raise RuntimeError(f"PDF deps not installed: {exc}")
+
+        import os
+
+        templates_dir = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "templates"
+        )
+        env = Environment(
+            loader=FileSystemLoader(templates_dir),
+            autoescape=select_autoescape(["html"]),
+        )
+        template = env.get_template("report.html")
+        html = template.render(report=report)
+        return HTML(string=html).write_pdf()
 
     def export_to_csv(self, report: GeneratedReport) -> str:
         """Export report data to CSV format"""

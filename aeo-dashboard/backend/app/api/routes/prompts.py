@@ -1,23 +1,27 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
 
 from app.core.database import get_db
+from app.models.client import Client, ClientDomain
 from app.models.prompt import Prompt, PromptCategory
+from app.schemas.base import PaginatedResponse
 from app.schemas.prompt import (
-    PromptCreate,
-    PromptUpdate,
-    PromptResponse,
     PromptBulkImport,
-    PromptGSCImport,
     PromptCategoryCreate,
     PromptCategoryResponse,
+    PromptCreate,
+    PromptGSCImport,
+    PromptResponse,
+    PromptUpdate,
     PromptVisibilityCheck,
 )
-from app.schemas.base import PaginatedResponse
+from app.services.citation_orchestrator import run_prompt_check
+from app.services.gsc_importer import GSCImporterService
 
 router = APIRouter()
+_gsc_importer = GSCImporterService()
 
 
 @router.get("/{client_id}", response_model=PaginatedResponse[PromptResponse])
@@ -129,21 +133,69 @@ async def import_prompts_bulk(
 async def import_from_gsc(
     client_id: int,
     config: PromptGSCImport,
-    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ):
-    """
-    Import prompts from Google Search Console data.
+    """Pull GSC queries, convert to prompts, cluster, prioritize, and persist."""
+    client_result = await db.execute(select(Client).where(Client.id == client_id))
+    client = client_result.scalar_one_or_none()
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+    domain_result = await db.execute(
+        select(ClientDomain).where(ClientDomain.client_id == client_id)
+    )
+    domains = domain_result.scalars().all()
+    primary = next(
+        (d for d in domains if d.is_primary), domains[0] if domains else None
+    )
+    property_url = (primary.gsc_property_url if primary else None) or (
+        f"https://{primary.domain}" if primary else f"https://{client.slug}.com"
+    )
 
-    Converts GSC queries to conversational AI prompts.
-    """
-    # This would trigger the GSC import service in the background
-    # background_tasks.add_task(gsc_importer.import_and_convert, client_id, config)
+    queries = await _gsc_importer.fetch_queries(
+        property_url=property_url,
+        days_back=config.days_back,
+        min_impressions=config.min_impressions,
+        min_clicks=config.min_clicks,
+        max_position=config.max_position,
+    )
+    converted = _gsc_importer.convert_to_prompts(queries, brand_names=client.brand_names or [])
+    clusters = _gsc_importer.cluster_prompts(converted)
+    prioritized = _gsc_importer.prioritize_prompts(converted)
+
+    added = 0
+    skipped = 0
+    for conv in converted:
+        existing = await db.execute(
+            select(Prompt).where(
+                Prompt.client_id == client_id,
+                Prompt.normalized_text == conv.conversational_prompt.lower().strip(),
+            )
+        )
+        if existing.scalar_one_or_none():
+            skipped += 1
+            continue
+        db.add(
+            Prompt(
+                text=conv.conversational_prompt,
+                normalized_text=conv.conversational_prompt.lower().strip(),
+                source="gsc_import",
+                intent_type=conv.intent_type,
+                is_branded=conv.is_branded,
+                gsc_impressions=conv.gsc_metrics.impressions,
+                gsc_clicks=conv.gsc_metrics.clicks,
+                gsc_avg_position=conv.gsc_metrics.position,
+                client_id=client_id,
+            )
+        )
+        added += 1
+    await db.commit()
 
     return {
-        "status": "import_started",
-        "message": "GSC import started. Check back for results.",
-        "config": config.model_dump(),
+        "status": "done",
+        "imported_prompts": added,
+        "skipped_duplicates": skipped,
+        "clusters": len(clusters),
+        "summary": _gsc_importer.generate_stakeholder_summary(prioritized),
     }
 
 
@@ -151,32 +203,35 @@ async def import_from_gsc(
 async def check_prompt_visibility(
     prompt_id: int,
     config: PromptVisibilityCheck,
-    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ):
-    """
-    Check if client is cited for this prompt across platforms.
-
-    Runs multiple checks to assess stability (variance analysis).
-    """
-    # Get prompt
-    result = await db.execute(
-        select(Prompt).where(Prompt.id == prompt_id)
-    )
+    """Run live visibility check across platforms and persist results."""
+    result = await db.execute(select(Prompt).where(Prompt.id == prompt_id))
     prompt = result.scalar_one_or_none()
-
     if not prompt:
         raise HTTPException(status_code=404, detail="Prompt not found")
 
-    # This would trigger citation checking in background
-    # background_tasks.add_task(citation_checker.check_with_variance, ...)
-
+    outcomes = await run_prompt_check(
+        db,
+        prompt,
+        platforms=config.platforms,
+        check_count=max(1, min(5, config.check_count)),
+    )
+    summary = {}
+    for platform, results in outcomes.items():
+        cited = sum(1 for r in results if r.was_cited)
+        positions = [r.position for r in results if r.position]
+        summary[platform] = {
+            "checks": len(results),
+            "citation_rate": round(cited / len(results), 2) if results else 0,
+            "avg_position": (sum(positions) / len(positions)) if positions else None,
+        }
     return {
-        "status": "check_started",
+        "status": "complete",
         "prompt_id": prompt_id,
-        "platforms": config.platforms,
-        "check_count": config.check_count,
-        "message": "Visibility check started. Results will be available shortly.",
+        "is_visible": prompt.is_visible,
+        "visibility_score": prompt.visibility_score,
+        "per_platform": summary,
     }
 
 

@@ -1,122 +1,102 @@
 'use client'
 
-import { FileText, AlertCircle, Clock } from 'lucide-react'
 import { clsx } from 'clsx'
+import Link from 'next/link'
 
-interface FreshnessItem {
-  url: string
-  title: string
-  grade: 'A' | 'B' | 'C' | 'D' | 'F'
-  daysOld: number
-  positionLoss: number
-  priority: 'critical' | 'high' | 'medium' | 'low'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { Skeleton } from '@/components/ui/Skeleton'
+
+const gradeBg: Record<string, string> = {
+  A: 'bg-green-500',
+  B: 'bg-blue-500',
+  C: 'bg-yellow-500',
+  D: 'bg-orange-500',
+  F: 'bg-red-500',
 }
 
-const freshnessData: FreshnessItem[] = [
-  { url: '/best-seo-tools', title: 'Best SEO Tools 2024', grade: 'F', daysOld: 420, positionLoss: 65, priority: 'critical' },
-  { url: '/crm-comparison', title: 'CRM Software Comparison', grade: 'D', daysOld: 280, positionLoss: 35, priority: 'high' },
-  { url: '/email-marketing', title: 'Email Marketing Guide', grade: 'C', daysOld: 185, positionLoss: 15, priority: 'medium' },
-  { url: '/project-mgmt', title: 'Project Management Tips', grade: 'B', daysOld: 95, positionLoss: 5, priority: 'low' },
-]
-
-const gradeColors = {
-  A: 'text-green-400 bg-green-400/10',
-  B: 'text-blue-400 bg-blue-400/10',
-  C: 'text-yellow-400 bg-yellow-400/10',
-  D: 'text-orange-400 bg-orange-400/10',
-  F: 'text-red-400 bg-red-400/10',
+const gradeText: Record<string, string> = {
+  A: 'text-green-400',
+  B: 'text-blue-400',
+  C: 'text-yellow-400',
+  D: 'text-orange-400',
+  F: 'text-red-400',
 }
 
-const priorityColors = {
-  critical: 'badge-danger',
-  high: 'badge-warning',
-  medium: 'badge-info',
-  low: 'badge-success',
-}
+export function FreshnessOverview({ data, isLoading }: { data?: any; isLoading?: boolean }) {
+  if (isLoading) {
+    return (
+      <div className="card">
+        <div className="card-header">
+          <h2 className="card-title">Content freshness</h2>
+        </div>
+        <Skeleton className="h-32 w-full" />
+      </div>
+    )
+  }
 
-export function FreshnessOverview() {
-  const gradeDistribution = { A: 10, B: 15, C: 8, D: 3, F: 1 }
-  const total = Object.values(gradeDistribution).reduce((a, b) => a + b, 0)
+  const dist = data?.grade_distribution ?? { A: 0, B: 0, C: 0, D: 0, F: 0 }
+  const total = Object.values(dist).reduce((a: number, b: any) => a + Number(b || 0), 0) as number
 
   return (
     <div className="card">
       <div className="card-header">
         <div>
-          <h2 className="card-title">Content Freshness</h2>
-          <p className="text-sm text-dark-400 mt-1">
-            {total} pages tracked
-          </p>
+          <h2 className="card-title">Content freshness</h2>
+          <p className="text-sm text-dark-400 mt-1">{total} pages tracked</p>
         </div>
-        <div className="text-2xl font-bold text-blue-400">B</div>
-      </div>
-
-      {/* Grade Distribution Bar */}
-      <div className="mt-4">
-        <div className="flex h-3 rounded-full overflow-hidden">
-          {Object.entries(gradeDistribution).map(([grade, count]) => (
-            <div
-              key={grade}
-              className={clsx(
-                'h-full',
-                grade === 'A' && 'bg-green-500',
-                grade === 'B' && 'bg-blue-500',
-                grade === 'C' && 'bg-yellow-500',
-                grade === 'D' && 'bg-orange-500',
-                grade === 'F' && 'bg-red-500'
-              )}
-              style={{ width: `${(count / total) * 100}%` }}
-            />
-          ))}
-        </div>
-        <div className="flex justify-between mt-2 text-xs text-dark-400">
-          {Object.entries(gradeDistribution).map(([grade, count]) => (
-            <span key={grade}>{grade}: {count}</span>
-          ))}
+        <div className={clsx('text-2xl font-bold', gradeText[data?.overall_grade ?? 'N/A'] ?? 'text-dark-400')}>
+          {data?.overall_grade ?? '—'}
         </div>
       </div>
 
-      {/* Model-Specific Targets */}
-      <div className="mt-4 p-3 bg-dark-800 rounded-lg">
-        <p className="text-xs text-dark-400 mb-2">Recommended Update Frequency</p>
-        <div className="grid grid-cols-2 gap-2 text-xs">
-          <div className="flex justify-between">
-            <span className="text-dark-500">GPT-based:</span>
-            <span className="text-white">6-12 months</span>
+      {total === 0 ? (
+        <EmptyState title="Nothing tracked" description="Add URLs on the Content page to start tracking freshness." />
+      ) : (
+        <>
+          <div className="flex h-3 rounded-full overflow-hidden mt-4">
+            {['A', 'B', 'C', 'D', 'F'].map((grade) => (
+              <div
+                key={grade}
+                className={clsx('h-full', gradeBg[grade])}
+                style={{ width: `${((dist[grade] || 0) / total) * 100}%` }}
+              />
+            ))}
           </div>
-          <div className="flex justify-between">
-            <span className="text-dark-500">LLaMA-based:</span>
-            <span className="text-white">3-6 months</span>
+          <div className="flex justify-between mt-2 text-xs text-dark-400">
+            {['A', 'B', 'C', 'D', 'F'].map((g) => (
+              <span key={g}>{g}: {dist[g] || 0}</span>
+            ))}
           </div>
-        </div>
-      </div>
 
-      {/* Pages Needing Refresh */}
-      <div className="mt-4 space-y-2">
-        <p className="text-xs text-dark-400">Needs Refresh</p>
-        {freshnessData.slice(0, 3).map((item) => (
-          <div
-            key={item.url}
-            className="flex items-center justify-between p-2 bg-dark-800 rounded-lg"
-          >
-            <div className="flex items-center gap-2">
-              <div className={clsx('w-6 h-6 rounded flex items-center justify-center text-xs font-bold', gradeColors[item.grade])}>
-                {item.grade}
-              </div>
-              <div>
-                <p className="text-xs font-medium text-white truncate max-w-[140px]">{item.title}</p>
-                <p className="text-xs text-dark-500">{item.daysOld} days old</p>
-              </div>
+          {data?.needs_refresh?.length > 0 && (
+            <div className="mt-4 space-y-2">
+              <p className="text-xs text-dark-400">Needs refresh</p>
+              {data.needs_refresh.slice(0, 3).map((item: any, idx: number) => (
+                <div
+                  key={idx}
+                  className="flex items-center justify-between p-2 bg-dark-800 rounded-lg"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div
+                      className={clsx(
+                        'w-6 h-6 rounded flex items-center justify-center text-xs font-bold',
+                        gradeText[item.grade] ?? 'text-dark-400',
+                      )}
+                    >
+                      {item.grade}
+                    </div>
+                    <p className="text-xs text-white truncate max-w-[170px]">{item.title || item.url}</p>
+                  </div>
+                  <span className="text-xs text-red-400">-{item.position_loss}</span>
+                </div>
+              ))}
             </div>
-            <span className={clsx('badge text-xs', priorityColors[item.priority])}>
-              -{item.positionLoss} pos
-            </span>
-          </div>
-        ))}
-      </div>
-
-      <button className="mt-4 w-full btn btn-secondary text-sm">
-        View All Content
-      </button>
+          )}
+          <Link href="/content" className="mt-4 block">
+            <button className="w-full btn btn-secondary text-sm">View all content</button>
+          </Link>
+        </>
+      )}
     </div>
   )
 }

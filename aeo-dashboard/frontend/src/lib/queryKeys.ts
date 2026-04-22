@@ -1,0 +1,26 @@
+export const queryKeys = {
+  clients: () => ['clients'] as const,
+  me: () => ['me'] as const,
+  dashboard: (clientId: number, period: string) => ['dashboard', clientId, period] as const,
+  platforms: (clientId: number) => ['platforms', clientId] as const,
+  alerts: (clientId: number) => ['alerts', clientId] as const,
+  quickActions: (clientId: number) => ['quick-actions', clientId] as const,
+  citations: (clientId: number, params?: Record<string, any>) =>
+    ['citations', clientId, params ?? null] as const,
+  citationStats: (clientId: number, days: number) => ['citation-stats', clientId, days] as const,
+  prompts: (clientId: number, params?: Record<string, any>) =>
+    ['prompts', clientId, params ?? null] as const,
+  keywords: (clientId: number) => ['keywords', clientId] as const,
+  rrfScores: (clientId: number) => ['rrf', clientId] as const,
+  rrfQuickRef: () => ['rrf-quick-ref'] as const,
+  rrfRecs: (clientId: number) => ['rrf-recs', clientId] as const,
+  content: (clientId: number) => ['content', clientId] as const,
+  freshnessSummary: (clientId: number) => ['freshness-summary', clientId] as const,
+  campaigns: (clientId: number) => ['campaigns', clientId] as const,
+  campaignAssets: (campaignId: number) => ['campaign-assets', campaignId] as const,
+  competitors: (clientId: number) => ['competitors', clientId] as const,
+  competitorComparison: (clientId: number) => ['competitor-comparison', clientId] as const,
+  authority: (clientId: number) => ['authority', clientId] as const,
+  reports: (clientId: number) => ['reports', clientId] as const,
+  schedules: (clientId: number) => ['schedules', clientId] as const,
+}

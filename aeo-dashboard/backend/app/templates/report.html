@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>{{ report.title }}</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm; }
+  body { font-family: -apple-system, "Segoe UI", Arial, sans-serif; color: #0f172a; }
+  h1 { font-size: 26pt; margin: 0 0 4pt; }
+  h2 { font-size: 14pt; color: #1e293b; border-bottom: 1px solid #cbd5e1; padding-bottom: 4pt; margin-top: 18pt; }
+  .meta { color: #64748b; font-size: 10pt; margin-bottom: 10pt; }
+  .kpi-grid { display: flex; flex-wrap: wrap; gap: 8pt; margin: 12pt 0 24pt; }
+  .kpi { background: #f1f5f9; padding: 10pt 12pt; border-radius: 6pt; min-width: 120pt; flex: 1; }
+  .kpi .label { color: #64748b; font-size: 9pt; }
+  .kpi .value { color: #0f172a; font-size: 18pt; font-weight: bold; }
+  .summary { background: #eef2ff; border-left: 3pt solid #4f46e5; padding: 10pt 14pt; border-radius: 4pt; line-height: 1.55; }
+  .section { page-break-inside: avoid; }
+  ul.recs { padding-left: 18pt; }
+  ul.recs li { margin: 4pt 0; }
+  .muted { color: #64748b; font-size: 10pt; }
+</style>
+</head>
+<body>
+  <h1>{{ report.title }}</h1>
+  <div class="meta">
+    {{ report.client_name }} &middot;
+    {{ report.period_start.strftime("%b %d, %Y") }} – {{ report.period_end.strftime("%b %d, %Y") }}
+    &middot; Generated {{ report.generated_at.strftime("%Y-%m-%d %H:%M UTC") }}
+  </div>
+
+  <div class="kpi-grid">
+    {% for key, value in report.key_metrics.items() %}
+    <div class="kpi">
+      <div class="label">{{ key.replace("_", " ").title() }}</div>
+      <div class="value">{{ value }}</div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="summary">{{ report.executive_summary }}</div>
+
+  {% for section in report.sections %}
+  <div class="section">
+    <h2>{{ section.title }}</h2>
+    {% if section.content is mapping %}
+      <table style="width:100%; border-collapse: collapse;">
+        {% for k, v in section.content.items() %}
+          {% if v is not mapping and v is not iterable or v is string %}
+          <tr><td class="muted" style="padding:3pt 0; width:40%;">{{ k.replace("_"," ").title() }}</td><td>{{ v }}</td></tr>
+          {% endif %}
+        {% endfor %}
+      </table>
+    {% endif %}
+    {% if section.recommendations %}
+      <ul class="recs">
+        {% for r in section.recommendations %}<li>{{ r }}</li>{% endfor %}
+      </ul>
+    {% endif %}
+  </div>
+  {% endfor %}
+</body>
+</html>

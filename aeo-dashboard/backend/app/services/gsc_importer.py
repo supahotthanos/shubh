@@ -113,21 +113,27 @@ class GSCImporterService:
         Returns:
             List of GSCQuery objects
         """
-        # In production, this would use the Google Search Console API
-        # via google-api-python-client
-        #
-        # Example API call:
-        # service.searchanalytics().query(
-        #     siteUrl=property_url,
-        #     body={
-        #         "startDate": start_date,
-        #         "endDate": end_date,
-        #         "dimensions": ["query"],
-        #         "rowLimit": 5000,
-        #     }
-        # ).execute()
+        from app.providers import get_gsc_provider
 
-        raise NotImplementedError("GSC API integration required")
+        provider = get_gsc_provider()
+        rows = await provider.fetch_queries(
+            property_url=property_url,
+            days_back=days_back,
+            row_limit=500,
+        )
+        return [
+            GSCQuery(
+                query=r.query,
+                clicks=r.clicks,
+                impressions=r.impressions,
+                ctr=r.ctr,
+                position=r.position,
+            )
+            for r in rows
+            if r.impressions >= min_impressions
+            and r.clicks >= min_clicks
+            and r.position <= max_position
+        ]
 
     def convert_to_prompts(
         self,

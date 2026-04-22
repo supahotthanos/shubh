@@ -1,54 +1,41 @@
 'use client'
 
-import { Bell, RefreshCw, Calendar } from 'lucide-react'
-import { useState } from 'react'
+import { Bell, RefreshCw, User } from 'lucide-react'
+import type { ReactNode } from 'react'
 
-export function DashboardHeader() {
-  const [period, setPeriod] = useState('30d')
+import { useAuthStore } from '@/stores/authStore'
+
+interface Props {
+  title?: string
+  description?: string
+  right?: ReactNode
+}
+
+export function DashboardHeader({ title = 'Dashboard', description, right }: Props) {
+  const { user } = useAuthStore()
+  const initials = (user?.full_name || user?.email || 'U').slice(0, 2).toUpperCase()
 
   return (
-    <header className="sticky top-0 z-10 bg-dark-900/80 backdrop-blur-sm border-b border-dark-800 px-6 py-4">
-      <div className="flex items-center justify-between">
+    <header className="sticky top-0 z-10 bg-dark-950/80 backdrop-blur-sm border-b border-dark-800 px-6 py-4">
+      <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">Dashboard</h1>
-          <p className="text-sm text-dark-400">
-            Track your AI visibility across all platforms
-          </p>
+          <h1 className="text-xl font-bold text-white">{title}</h1>
+          {description && <p className="text-sm text-dark-400 mt-1">{description}</p>}
         </div>
-
-        <div className="flex items-center gap-4">
-          {/* Period Selector */}
-          <div className="flex items-center gap-2 bg-dark-800 rounded-lg p-1">
-            {['7d', '30d', '60d', '90d'].map((p) => (
-              <button
-                key={p}
-                onClick={() => setPeriod(p)}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                  period === p
-                    ? 'bg-primary-600 text-white'
-                    : 'text-dark-400 hover:text-white'
-                }`}
-              >
-                {p}
-              </button>
-            ))}
-          </div>
-
-          {/* Refresh Button */}
-          <button className="btn btn-secondary flex items-center gap-2">
-            <RefreshCw className="w-4 h-4" />
-            Refresh
-          </button>
-
-          {/* Notifications */}
-          <button className="relative p-2 rounded-lg hover:bg-dark-800 transition-colors">
+        <div className="flex items-center gap-3">
+          {right}
+          <button className="relative p-2 rounded-lg hover:bg-dark-800" aria-label="Notifications">
             <Bell className="w-5 h-5 text-dark-400" />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
           </button>
-
-          {/* User Avatar */}
-          <div className="w-9 h-9 bg-primary-600 rounded-full flex items-center justify-center">
-            <span className="text-sm font-medium text-white">JD</span>
+          <div
+            className="w-9 h-9 bg-primary-600 rounded-full flex items-center justify-center"
+            aria-label="User avatar"
+          >
+            {user ? (
+              <span className="text-sm font-medium text-white">{initials}</span>
+            ) : (
+              <User className="w-4 h-4" />
+            )}
           </div>
         </div>
       </div>

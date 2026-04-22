@@ -1,95 +1,67 @@
 'use client'
 
-import { RefreshCw, Code, Target, ArrowRight } from 'lucide-react'
+import { ArrowRight, Code, RefreshCw, Target } from 'lucide-react'
 import { clsx } from 'clsx'
+import type { ReactNode } from 'react'
 
-interface QuickAction {
-  id: string
-  title: string
-  description: string
-  icon: React.ReactNode
-  priority: number
-  impact: 'high' | 'medium' | 'low'
-  actionType: string
+import { EmptyState } from '@/components/ui/EmptyState'
+import { Skeleton } from '@/components/ui/Skeleton'
+
+const iconByType: Record<string, ReactNode> = {
+  content_refresh: <RefreshCw className="w-5 h-5" />,
+  schema_optimization: <Code className="w-5 h-5" />,
+  keyword_expansion: <Target className="w-5 h-5" />,
 }
 
-const actions: QuickAction[] = [
-  {
-    id: '1',
-    title: 'Refresh Outdated Content',
-    description: '4 pages need content updates to maintain freshness scores',
-    icon: <RefreshCw className="w-5 h-5" />,
-    priority: 1,
-    impact: 'high',
-    actionType: 'content_refresh',
-  },
-  {
-    id: '2',
-    title: 'Add Missing Schema Markup',
-    description: '3 high-traffic pages missing structured data',
-    icon: <Code className="w-5 h-5" />,
-    priority: 2,
-    impact: 'medium',
-    actionType: 'schema_optimization',
-  },
-  {
-    id: '3',
-    title: 'Target New Keywords',
-    description: '12 high-potential prompts identified from GSC data',
-    icon: <Target className="w-5 h-5" />,
-    priority: 3,
-    impact: 'high',
-    actionType: 'keyword_expansion',
-  },
-]
-
-const impactColors = {
+const impactColors: Record<string, string> = {
   high: 'text-green-400 bg-green-400/10',
   medium: 'text-yellow-400 bg-yellow-400/10',
   low: 'text-dark-400 bg-dark-700',
 }
 
-export function QuickActions() {
+export function QuickActions({ data, isLoading }: { data?: any; isLoading?: boolean }) {
+  const actions: any[] = data?.actions ?? []
+
   return (
     <div className="card">
       <div className="card-header">
         <div>
-          <h2 className="card-title">Quick Actions</h2>
-          <p className="text-sm text-dark-400 mt-1">
-            Prioritized tasks based on your data
-          </p>
+          <h2 className="card-title">Quick actions</h2>
+          <p className="text-sm text-dark-400 mt-1">Prioritized tasks based on your current data</p>
         </div>
       </div>
-
-      <div className="grid grid-cols-3 gap-4 mt-4">
-        {actions.map((action) => (
-          <div
-            key={action.id}
-            className="p-4 bg-dark-800 rounded-lg border border-dark-700 hover:border-primary-500/50 transition-colors cursor-pointer group"
-          >
-            <div className="flex items-start justify-between">
-              <div className={clsx('p-2 rounded-lg', impactColors[action.impact])}>
-                {action.icon}
+      {isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+          <Skeleton className="h-28" />
+          <Skeleton className="h-28" />
+          <Skeleton className="h-28" />
+        </div>
+      ) : actions.length === 0 ? (
+        <EmptyState title="Nothing urgent" description="Your data looks healthy right now." />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+          {actions.map((a) => (
+            <div
+              key={a.id}
+              className="p-4 bg-dark-800 rounded-lg border border-dark-700 hover:border-primary-500/50 transition-colors"
+            >
+              <div className="flex items-start justify-between">
+                <div className={clsx('p-2 rounded-lg', impactColors[a.estimated_impact] ?? impactColors.medium)}>
+                  {iconByType[a.action_type] ?? <Target className="w-5 h-5" />}
+                </div>
+                <span className={clsx('badge text-xs', impactColors[a.estimated_impact] ?? impactColors.medium)}>
+                  {a.estimated_impact} impact
+                </span>
               </div>
-              <span className={clsx('badge text-xs', impactColors[action.impact])}>
-                {action.impact} impact
-              </span>
+              <h3 className="mt-4 text-sm font-semibold text-white">{a.title}</h3>
+              <p className="mt-1 text-xs text-dark-400">{a.description}</p>
+              <div className="mt-4 flex items-center gap-2 text-xs text-primary-400">
+                Take action <ArrowRight className="w-3 h-3" />
+              </div>
             </div>
-
-            <h3 className="mt-4 text-sm font-semibold text-white group-hover:text-primary-400 transition-colors">
-              {action.title}
-            </h3>
-            <p className="mt-1 text-xs text-dark-400">
-              {action.description}
-            </p>
-
-            <button className="mt-4 flex items-center gap-2 text-xs text-primary-400 hover:text-primary-300 transition-colors">
-              Take Action
-              <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
-            </button>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

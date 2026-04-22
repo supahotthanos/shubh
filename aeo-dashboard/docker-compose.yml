@@ -1,0 +1,86 @@
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: aeo_dashboard
+    ports: ["5432:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:password@postgres:5432/aeo_dashboard
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: local-dev-secret
+      CORS_ORIGINS: '["http://localhost:3000"]'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports: ["8000:8000"]
+    volumes:
+      - ./backend:/app
+    command: >
+      sh -c "alembic upgrade head &&
+             python -m scripts.seed &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+
+  worker:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:password@postgres:5432/aeo_dashboard
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: local-dev-secret
+    depends_on:
+      backend:
+        condition: service_started
+    volumes:
+      - ./backend:/app
+    command: celery -A app.core.celery_app worker --loglevel=info
+
+  beat:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:password@postgres:5432/aeo_dashboard
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: local-dev-secret
+    depends_on:
+      worker:
+        condition: service_started
+    volumes:
+      - ./backend:/app
+    command: celery -A app.core.celery_app beat --loglevel=info
+
+  frontend:
+    build: ./frontend
+    environment:
+      BACKEND_URL: http://backend:8000
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    depends_on:
+      backend:
+        condition: service_started
+    ports: ["3000:3000"]
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+volumes:
+  pgdata:
