@@ -1,5 +1,13 @@
 # Finance Tracker
 
+> 📱 **No-server option:** [`standalone.html`](./standalone.html) is a single-file
+> version that runs entirely in your phone's browser. Save the file, tap to open,
+> done. Same features (PDF parsing, categorization, recommendations, monthly slots,
+> budgets, charts) — all client-side, all data in localStorage. Password is the
+> same. See bottom of this README for how to get it onto your phone.
+
+
+
 A personal finance app that ingests **Amex PDF statements**, categorizes every charge,
 generates a spending report with **specific dollar-amount cut recommendations**, tracks
 spending **month-by-month**, and lets you set **forward-looking budgets** suggested
@@ -105,3 +113,32 @@ back to the most common transaction month. Credits/payments (trailing `-` or
 
 If your statement layout doesn't parse cleanly, every transaction can still be
 edited from the **Transactions** tab.
+
+## `standalone.html` — phone-friendly, no server
+
+The file `standalone.html` is the entire app in a single HTML file. It uses
+[pdf.js](https://mozilla.github.io/pdf.js/) (loaded from a CDN) to parse Amex
+PDFs in the browser, ports the categorizer + insights logic to JS, and persists
+everything to `localStorage` on your device. Same login password.
+
+**Three ways to get it onto your phone:**
+
+1. **Download the file directly** — open
+   [the raw file on GitHub](https://raw.githubusercontent.com/supahotthanos/shubh/claude/finance-tracker-app-9BotE/finance-tracker/standalone.html)
+   on your phone (long-press → Save). Then open it from your Files / Downloads
+   app. iOS Safari and Android Chrome both support file:// URLs.
+2. **Email/AirDrop it to yourself** — clone this repo, AirDrop `standalone.html`
+   to your phone, open from Files.
+3. **GitHub Pages** — in this repo, enable Pages on the `claude/finance-tracker-app-9BotE`
+   branch with folder `/finance-tracker`. You'll get a URL like
+   `https://supahotthanos.github.io/shubh/standalone.html` that you can bookmark
+   and "Add to Home Screen" — looks and feels like a native app.
+
+**Limits of the standalone version:**
+- Data lives only in that browser, on that device. Use Settings → Export JSON
+  to back it up; Import JSON to restore.
+- The "password" is in source — anyone who can read the HTML can see it. It's a
+  soft lock to keep someone who picks up your phone out of the data, not real
+  security.
+- Needs internet on first load (to fetch pdf.js + Chart.js from CDN). After that
+  it works offline since browsers cache the libs.

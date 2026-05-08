@@ -1,0 +1,867 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#0f1115" />
+  <title>Finance Tracker</title>
+  <style>
+    :root {
+      --bg: #0f1115; --surface: #171a21; --surface-2: #1f242d; --border: #2a313d;
+      --text: #e7eaf0; --muted: #8b94a3; --accent: #6ee7b7; --accent-2: #60a5fa;
+      --warn: #fbbf24; --danger: #f87171;
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", system-ui, sans-serif;
+      font-size: 14px; line-height: 1.45;
+      padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
+    button, input, select { font-family: inherit; font-size: inherit; }
+
+    .topbar { display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 16px; border-bottom: 1px solid var(--border); background: var(--surface);
+      position: sticky; top: 0; z-index: 10; }
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .brand h1 { margin: 0; font-size: 15px; font-weight: 600; }
+    .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent);
+      box-shadow: 0 0 10px var(--accent); }
+
+    nav.tabs { display: flex; gap: 4px; overflow-x: auto; padding: 8px 12px;
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      position: sticky; top: 47px; z-index: 9; -webkit-overflow-scrolling: touch; }
+    nav.tabs::-webkit-scrollbar { display: none; }
+    .tab { background: transparent; color: var(--muted); border: 1px solid transparent;
+      padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 13px; white-space: nowrap; }
+    .tab:hover { color: var(--text); background: var(--surface-2); }
+    .tab.active { color: var(--text); background: var(--surface-2); border-color: var(--border); }
+
+    main { padding: 12px; max-width: 1100px; margin: 0 auto; }
+
+    .month-switcher { display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+      background: var(--surface); border: 1px solid var(--border); padding: 12px;
+      border-radius: 10px; margin-bottom: 12px; }
+    .month-switcher label { display: flex; align-items: center; gap: 8px; color: var(--muted); flex: 1; min-width: 180px; }
+    .month-switcher select { flex: 1; }
+    .upload-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; width: 100%; }
+    .upload-row > * { flex: 1; min-width: 130px; }
+    .upload-row .btn-primary { flex: 0 0 auto; }
+    .status { color: var(--muted); font-size: 12px; flex: 1 1 100%; }
+
+    select, input[type="file"], input[type="month"], input[type="number"], input[type="password"], input[type="text"] {
+      background: var(--bg); color: var(--text); border: 1px solid var(--border);
+      padding: 8px 10px; border-radius: 6px; font-size: 14px; width: 100%; }
+    input[type="file"]::file-selector-button { background: var(--surface-2); color: var(--text);
+      border: none; padding: 6px 10px; border-radius: 4px; margin-right: 8px; cursor: pointer; }
+
+    .btn-primary, .btn-secondary, .btn-danger {
+      padding: 8px 14px; border-radius: 6px; font-size: 13px; cursor: pointer; border: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    .btn-primary { background: var(--accent); color: #052e1f; border-color: var(--accent); font-weight: 600; }
+    .btn-primary:hover { filter: brightness(1.05); }
+    .btn-secondary { background: var(--surface-2); color: var(--text); }
+    .btn-danger { background: transparent; color: var(--danger); border-color: var(--danger); }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    .cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 12px; }
+    @media (min-width: 700px) { .cards { grid-template-columns: repeat(4, 1fr); } }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+      padding: 14px; margin-bottom: 12px; }
+    .card h3 { margin: 0 0 10px 0; font-size: 14px; font-weight: 600; }
+    .hint { color: var(--muted); font-weight: 400; font-size: 12px; }
+    .kpi .label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .kpi .value { font-size: 22px; font-weight: 600; margin-top: 4px; font-variant-numeric: tabular-nums; }
+    .kpi .value.small { font-size: 16px; }
+
+    .grid-2 { display: grid; grid-template-columns: 1fr; gap: 12px; }
+    @media (min-width: 900px) { .grid-2 { grid-template-columns: 1fr 1fr; } }
+
+    .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .data-table th, .data-table td { padding: 8px 6px; text-align: left; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    .data-table th { color: var(--muted); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; }
+    .data-table td.r, .data-table th.r { text-align: right; font-variant-numeric: tabular-nums; }
+    .data-table tr:last-child td { border-bottom: none; }
+    .table-scroll { overflow-x: auto; }
+
+    .recs { display: flex; flex-direction: column; gap: 8px; }
+    .rec { display: flex; gap: 10px; padding: 12px; border: 1px solid var(--border); border-radius: 8px;
+      background: var(--surface-2); }
+    .rec .save { font-size: 16px; font-weight: 700; color: var(--accent); min-width: 90px; text-align: right;
+      font-variant-numeric: tabular-nums; }
+    .rec .body { flex: 1; min-width: 0; }
+    .rec .body .title { font-weight: 600; margin-bottom: 4px; }
+    .rec .body .detail { color: var(--muted); font-size: 13px; }
+    .rec .pill { display: inline-block; font-size: 10px; padding: 1px 7px; border-radius: 999px;
+      background: var(--bg); color: var(--muted); margin-left: 6px; }
+
+    .budget-row { display: grid; grid-template-columns: 110px 1fr 110px; gap: 10px; align-items: center;
+      padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+    .budget-row:last-child { border-bottom: none; }
+    .bar-wrap { background: var(--bg); height: 9px; border-radius: 999px; overflow: hidden; }
+    .bar { height: 100%; background: var(--accent); transition: width 0.25s; }
+    .bar.warn { background: var(--warn); }
+    .bar.over { background: var(--danger); }
+    .budget-row .pct { font-size: 11px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+
+    .cat-select { background: var(--bg); color: var(--text); border: 1px solid var(--border);
+      padding: 4px 6px; border-radius: 4px; font-size: 12px; max-width: 110px; }
+
+    .empty { color: var(--muted); padding: 20px; text-align: center; font-size: 13px; }
+
+    /* Login overlay */
+    .login-overlay { position: fixed; inset: 0; background: var(--bg); display: flex;
+      align-items: center; justify-content: center; z-index: 100; padding: 20px; }
+    .login-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+      padding: 24px; width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 14px; }
+    .login-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+    .login-brand h1 { margin: 0; font-size: 16px; font-weight: 600; }
+    .login-card label { display: flex; flex-direction: column; gap: 6px; color: var(--muted); font-size: 11px;
+      text-transform: uppercase; letter-spacing: 0.4px; }
+    .login-card input { padding: 10px 12px; font-size: 16px; border-radius: 8px; }
+    .login-card input:focus { outline: none; border-color: var(--accent); }
+    .login-card .btn-primary { padding: 10px 14px; font-size: 14px; }
+    .login-error { color: var(--danger); font-size: 13px; min-height: 18px; }
+
+    .danger-zone { margin-top: 24px; padding-top: 16px; border-top: 1px dashed var(--border); }
+
+    canvas { max-width: 100%; }
+  </style>
+</head>
+<body>
+  <div id="loginOverlay" class="login-overlay" hidden>
+    <form id="loginForm" class="login-card">
+      <div class="login-brand"><span class="dot"></span><h1>Finance Tracker</h1></div>
+      <label>Password
+        <input type="password" id="loginPassword" autocomplete="current-password" required autofocus />
+      </label>
+      <button type="submit" class="btn-primary">Sign in</button>
+      <div id="loginError" class="login-error"></div>
+    </form>
+  </div>
+
+  <header class="topbar">
+    <div class="brand"><span class="dot"></span><h1>Finance Tracker</h1></div>
+    <button id="logoutBtn" class="tab" title="Sign out">Sign out</button>
+  </header>
+  <nav class="tabs">
+    <button data-tab="dashboard" class="tab active">Dashboard</button>
+    <button data-tab="transactions" class="tab">Transactions</button>
+    <button data-tab="budget" class="tab">Budget</button>
+    <button data-tab="trends" class="tab">Trends</button>
+    <button data-tab="settings" class="tab">Settings</button>
+  </nav>
+
+  <main>
+    <section class="month-switcher">
+      <label>Month
+        <select id="monthSelect"></select>
+      </label>
+      <div class="upload-row">
+        <input type="file" id="pdfInput" accept="application/pdf" />
+        <input type="month" id="periodInput" placeholder="auto" />
+        <button id="uploadBtn" class="btn-primary">Upload PDF</button>
+      </div>
+      <div id="uploadStatus" class="status"></div>
+    </section>
+
+    <section id="tab-dashboard" class="tab-panel active">
+      <div class="cards">
+        <div class="card kpi"><div class="label">Total spend</div><div class="value" id="kpiTotal">—</div></div>
+        <div class="card kpi"><div class="label">Transactions</div><div class="value" id="kpiCount">—</div></div>
+        <div class="card kpi"><div class="label">Net</div><div class="value" id="kpiNet">—</div></div>
+        <div class="card kpi"><div class="label">Top category</div><div class="value small" id="kpiTopCat">—</div></div>
+      </div>
+      <div class="grid-2">
+        <div class="card"><h3>Spending by category</h3><canvas id="categoryChart"></canvas></div>
+        <div class="card"><h3>Top merchants</h3>
+          <div class="table-scroll"><table class="data-table" id="merchantTable">
+            <thead><tr><th>Merchant</th><th>Cat</th><th>×</th><th class="r">Total</th></tr></thead><tbody></tbody>
+          </table></div></div>
+      </div>
+      <div class="card">
+        <h3>Recommendations <span class="hint">— concrete cuts with estimated monthly savings</span></h3>
+        <div id="recommendations" class="recs"></div>
+      </div>
+      <div class="card">
+        <h3>Recurring charges</h3>
+        <div class="table-scroll"><table class="data-table" id="recurringTable">
+          <thead><tr><th>Merchant</th><th>Cat</th><th>Mo's</th><th class="r">Avg</th></tr></thead><tbody></tbody>
+        </table></div>
+      </div>
+      <div class="card"><h3>Budget status this month</h3><div id="budgetBars"></div></div>
+    </section>
+
+    <section id="tab-transactions" class="tab-panel">
+      <div class="card"><h3>All transactions <span class="hint">— tap a category to recategorize</span></h3>
+        <div class="table-scroll"><table class="data-table" id="txnTable">
+          <thead><tr><th>Date</th><th>Merchant</th><th>Category</th><th class="r">Amount</th></tr></thead><tbody></tbody>
+        </table></div>
+      </div>
+    </section>
+
+    <section id="tab-budget" class="tab-panel">
+      <div class="card">
+        <h3>Set monthly budgets</h3>
+        <p class="hint">Suggestions come from your trailing 3-month average + 5% buffer.</p>
+        <div id="budgetEditor"></div>
+        <button id="saveBudgets" class="btn-primary" style="margin-top:12px">Save budgets</button>
+        <span id="budgetStatus" class="status"></span>
+      </div>
+    </section>
+
+    <section id="tab-trends" class="tab-panel">
+      <div class="card"><h3>Monthly spending</h3><canvas id="trendChart"></canvas></div>
+      <div class="card"><h3>Category trend</h3><canvas id="categoryTrendChart"></canvas></div>
+    </section>
+
+    <section id="tab-settings" class="tab-panel">
+      <div class="card">
+        <h3>Data</h3>
+        <p class="hint">Everything is stored only on this device, in your browser. Back it up if it matters.</p>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;">
+          <button id="exportBtn" class="btn-secondary">Export JSON</button>
+          <label class="btn-secondary" style="cursor:pointer;">Import JSON
+            <input type="file" id="importInput" accept="application/json" hidden />
+          </label>
+        </div>
+        <div class="danger-zone">
+          <h3 style="color:var(--danger)">Danger zone</h3>
+          <button id="deleteMonthBtn" class="btn-danger">Delete current month</button>
+          <button id="resetBtn" class="btn-danger" style="margin-left:8px">Reset everything</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <script type="module">
+    import * as pdfjsLib from 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.min.mjs';
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.worker.min.mjs';
+    window.pdfjsLib = pdfjsLib;
+  </script>
+  <script>
+  // ============ Helpers (shared) ============
+  const fmt = (n, withDollar = true) => (withDollar ? "$" : "") + (n ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const titleCase = (s) => (s || "").toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+
+  // ============ Constants ============
+  const PASSWORD = "Shubh2007$";
+  const STORAGE_KEY = "ft.data.v1";
+  const AUTH_KEY = "ft.auth.v1";
+
+  const CATEGORY_ORDER = [
+    "Groceries", "Dining", "Coffee", "Rideshare", "Gas", "Transit", "Travel",
+    "Subscriptions", "Utilities", "Health", "Shopping", "Entertainment", "Fees", "Other",
+  ];
+
+  // [category, [regex...]] — order matters; first match wins.
+  const CATEGORY_RULES = [
+    ["Coffee", [/starbucks/i, /blue bottle/i, /philz/i, /peet'?s/i, /dunkin/i, /caribou/i, /\bcafe\b/i, /coffee/i, /la colombe/i, /intelligentsia/i]],
+    ["Groceries", [/whole foods/i, /trader joe/i, /safeway/i, /kroger/i, /wegmans/i, /publix/i, /costco/i, /sam'?s club/i, /aldi/i, /sprouts/i, /\bh-?e-?b\b/i, /ralphs/i, /food lion/i, /giant/i, /stop ?& ?shop/i, /shoprite/i, /erewhon/i]],
+    ["Dining", [/chipotle/i, /sweetgreen/i, /shake shack/i, /mcdonald/i, /chick-?fil-?a/i, /dominos/i, /pizza/i, /sushi/i, /thai/i, /taco bell/i, /wendy/i, /burger/i, /restaurant/i, /grill/i, /kitchen/i, /bistro/i, /bar ?& ?/i, /\bbbq\b/i, /deli/i, /diner/i, /steakhouse/i, /ramen/i, /pho /i, /\bdoordash\b/i, /\bgrubhub\b/i, /\buber ?eats\b/i, /caviar/i, /seamless/i, /postmates/i]],
+    ["Groceries", [/\bmarket\b/i, /\bmart\b/i]],
+    ["Rideshare", [/\buber\b(?! ?eats)/i, /\blyft\b/i, /\bcurb\b/i, /\bvia\b/i]],
+    ["Gas", [/shell/i, /chevron/i, /exxon/i, /mobil/i, /bp /i, /sunoco/i, /\b76\b/i, /arco/i]],
+    ["Transit", [/\bmta\b/i, /\bbart\b/i, /\bcaltrain\b/i, /\bsfmta\b/i, /\bclipper\b/i, /metro/i, /transit/i]],
+    ["Travel", [/airline/i, /airways/i, /\bdelta\b/i, /united/i, /american air/i, /southwest/i, /jetblue/i, /alaska air/i, /\bspirit\b/i, /frontier/i, /hotel/i, /marriott/i, /hilton/i, /hyatt/i, /airbnb/i, /vrbo/i, /expedia/i, /booking\.com/i, /kayak/i, /\btsa\b/i, /clear /i, /global entry/i]],
+    ["Subscriptions", [/netflix/i, /spotify/i, /hulu/i, /disney\+?/i, /hbo/i, /max\.com/i, /apple\.com\/bill/i, /icloud/i, /google\s*\*?storage/i, /dropbox/i, /adobe/i, /github/i, /openai/i, /anthropic/i, /chatgpt/i, /\bchegg\b/i, /\bmedium\b/i, /new york times/i, /\bnyt\b/i, /wsj/i, /washington post/i, /patreon/i, /substack/i, /\bnotion\b/i, /figma/i, /\bcanva\b/i, /\blinkedin\b/i, /audible/i, /youtube premium/i, /paramount\+/i, /peacock/i, /\bduolingo\b/i, /\bgrammarly\b/i, /1password/i, /lastpass/i]],
+    ["Utilities", [/comcast/i, /xfinity/i, /verizon/i, /\bat&t\b/i, /\bt-?mobile\b/i, /sprint/i, /pg&e/i, /con ?ed/i, /electric/i, /\bgas co\b/i, /water/i, /sewer/i]],
+    ["Health", [/pharmacy/i, /cvs/i, /walgreens/i, /rite aid/i, /hospital/i, /clinic/i, /dental/i, /vision/i, /\bgym\b/i, /equinox/i, /planet fitness/i, /peloton/i, /barry'?s/i, /soulcycle/i, /\byoga\b/i, /\bpilates\b/i]],
+    ["Shopping", [/amazon/i, /\bamzn\b/i, /target/i, /walmart/i, /best buy/i, /apple store/i, /\bnike\b/i, /adidas/i, /\bzara\b/i, /\buniqlo\b/i, /\bh&m\b/i, /sephora/i, /ulta/i, /\bikea\b/i, /\betsy\b/i, /\bebay\b/i]],
+    ["Entertainment", [/\bamc\b/i, /regal/i, /cinema/i, /theatre/i, /theater/i, /ticketmaster/i, /stubhub/i, /\bsteam\b/i, /playstation/i, /xbox/i, /nintendo/i]],
+    ["Fees", [/interest charge/i, /late fee/i, /foreign transaction/i, /annual fee/i, /\bfee\b/i]],
+  ];
+
+  function categorize(merchant) {
+    const text = (merchant || "").toLowerCase();
+    for (const [cat, pats] of CATEGORY_RULES) {
+      for (const re of pats) if (re.test(text)) return cat;
+    }
+    return "Other";
+  }
+
+  // ============ Storage ============
+  const Store = {
+    load() {
+      try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || { statements: {}, budgets: {} }; }
+      catch { return { statements: {}, budgets: {} }; }
+    },
+    save(d) { localStorage.setItem(STORAGE_KEY, JSON.stringify(d)); },
+    isAuthed() { return localStorage.getItem(AUTH_KEY) === "1"; },
+    setAuthed(v) { v ? localStorage.setItem(AUTH_KEY, "1") : localStorage.removeItem(AUTH_KEY); },
+  };
+
+  // ============ PDF parser ============
+  // Reconstruct text lines from pdf.js items by Y-coordinate, then run the Amex line regex.
+  const LINE_RE = /^\s*(\d{2}\/\d{2}(?:\/\d{2,4})?)\*?\s+(.+?)\s+-?\$?\s*([\d,]+\.\d{2})(-?)\s*$/;
+  const PERIOD_RE = /closing date\s+(\d{2}\/\d{2}\/\d{2,4})/i;
+  const PERIOD_RANGE_RE = /(\d{2}\/\d{2}\/\d{2,4})\s*[-–to]+\s*(\d{2}\/\d{2}\/\d{2,4})/i;
+  const SKIP = ["previous balance","payment received","balance forward","new balance","minimum payment","credit limit","available credit","total fees","total interest","page ","account ending","membership rewards","summary of account"];
+
+  function parseDate(s, fallbackYear) {
+    const m1 = s.match(/^(\d{2})\/(\d{2})\/(\d{2,4})$/);
+    if (m1) {
+      let [, mm, dd, yy] = m1;
+      yy = yy.length === 2 ? (+yy + 2000) : +yy;
+      return new Date(+yy, +mm - 1, +dd);
+    }
+    const m2 = s.match(/^(\d{2})\/(\d{2})$/);
+    if (m2 && fallbackYear) return new Date(+fallbackYear, +m2[1] - 1, +m2[2]);
+    return null;
+  }
+
+  async function pdfToLines(arrayBuffer) {
+    const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const lines = [];
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const tc = await page.getTextContent();
+      const byY = new Map();
+      for (const it of tc.items) {
+        const y = Math.round(it.transform[5]);
+        if (!byY.has(y)) byY.set(y, []);
+        byY.get(y).push({ x: it.transform[4], s: it.str });
+      }
+      // Iterate Y from top of page (high Y) to bottom (low Y) so order matches reading order.
+      const ys = [...byY.keys()].sort((a, b) => b - a);
+      for (const y of ys) {
+        const items = byY.get(y).sort((a, b) => a.x - b.x);
+        const line = items.map(i => i.s).join(" ").replace(/\s+/g, " ").trim();
+        if (line) lines.push(line);
+      }
+    }
+    return lines;
+  }
+
+  function detectPeriod(lines) {
+    const text = lines.join("\n");
+    let end = null, start = null;
+    let m = PERIOD_RE.exec(text);
+    if (m) end = parseDate(m[1]);
+    m = PERIOD_RANGE_RE.exec(text);
+    if (m) { start = parseDate(m[1]); end = parseDate(m[2]) || end; }
+    if (end) return { period: `${end.getFullYear()}-${String(end.getMonth()+1).padStart(2,'0')}`, start, end };
+    return { period: "", start: null, end: null };
+  }
+
+  async function parseAmexPdf(file) {
+    const buf = await file.arrayBuffer();
+    const lines = await pdfToLines(buf);
+    const { period, end } = detectPeriod(lines);
+    const fallbackYear = end ? end.getFullYear() : new Date().getFullYear();
+    const txns = [];
+    for (const raw of lines) {
+      const low = raw.toLowerCase();
+      if (SKIP.some(k => low.includes(k))) continue;
+      const m = LINE_RE.exec(raw);
+      if (!m) continue;
+      const [, dateStr, desc, amtStr, neg] = m;
+      const d = parseDate(dateStr, fallbackYear);
+      if (!d) continue;
+      let amt = parseFloat(amtStr.replace(/,/g, ""));
+      if (isNaN(amt)) continue;
+      if (neg === "-" || raw.trim().startsWith("-")) amt = -amt;
+      const merchant = desc.replace(/\s{2,}/g, " ").trim();
+      txns.push({
+        id: crypto.randomUUID(),
+        date: d.toISOString().slice(0, 10),
+        merchant, description: desc.trim(), amount: amt,
+        category: categorize(merchant),
+      });
+    }
+    let finalPeriod = period;
+    if (!finalPeriod && txns.length) {
+      const counts = {};
+      for (const t of txns) {
+        const k = t.date.slice(0, 7);
+        counts[k] = (counts[k] || 0) + 1;
+      }
+      finalPeriod = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+    }
+    if (!finalPeriod) finalPeriod = new Date().toISOString().slice(0, 7);
+    const total = +txns.filter(t => t.amount > 0).reduce((s, t) => s + t.amount, 0).toFixed(2);
+    return { period: finalPeriod, transactions: txns, statement_total: total };
+  }
+
+  // ============ Insights ============
+  function normalizeMerchant(name) {
+    let n = (name || "").toUpperCase()
+      .replace(/\b\d{4,}\b/g, "")
+      .replace(/\b[A-Z]{2}\b\s*$/g, "")
+      .replace(/\s+/g, " ").trim();
+    return n.split(" ").slice(0, 3).join(" ");
+  }
+
+  function buildReport(data, period) {
+    const stmt = data.statements[period];
+    if (!stmt) return { period, exists: false };
+    const charges = stmt.transactions.filter(t => t.amount > 0);
+    const credits = stmt.transactions.filter(t => t.amount < 0);
+    const totalSpend = +charges.reduce((s, t) => s + t.amount, 0).toFixed(2);
+    const totalCredits = +credits.reduce((s, t) => s + (-t.amount), 0).toFixed(2);
+
+    const byCat = {}; const cnt = {};
+    for (const t of charges) {
+      byCat[t.category] = (byCat[t.category] || 0) + t.amount;
+      cnt[t.category] = (cnt[t.category] || 0) + 1;
+    }
+    Object.keys(byCat).forEach(k => byCat[k] = +byCat[k].toFixed(2));
+
+    const merch = {};
+    for (const t of charges) {
+      const k = normalizeMerchant(t.merchant);
+      const m = merch[k] || (merch[k] = { merchant: k, total: 0, count: 0, category: t.category });
+      m.total += t.amount; m.count += 1;
+    }
+    const topMerch = Object.values(merch).map(m => ({ ...m, total: +m.total.toFixed(2), avg: +(m.total / m.count).toFixed(2) }))
+      .sort((a, b) => b.total - a.total).slice(0, 10);
+
+    const recurring = findRecurring(data, period);
+
+    const budgetStatus = Object.entries(data.budgets).map(([cat, limit]) => {
+      const spent = byCat[cat] || 0;
+      return { category: cat, limit: +limit.toFixed(2), spent: +spent.toFixed(2),
+        remaining: +(limit - spent).toFixed(2), pct_used: limit ? +((spent / limit) * 100).toFixed(1) : 0 };
+    }).sort((a, b) => b.pct_used - a.pct_used);
+
+    const recommendations = buildRecommendations({ byCat, cnt, merch, budgets: data.budgets, recurring });
+
+    return {
+      period, exists: true,
+      total_spend: totalSpend, total_credits: totalCredits,
+      net: +(totalSpend - totalCredits).toFixed(2),
+      transaction_count: charges.length,
+      by_category: Object.entries(byCat).map(([k, v]) => ({ category: k, total: v, count: cnt[k] }))
+        .sort((a, b) => b.total - a.total),
+      top_merchants: topMerch,
+      recurring_charges: recurring,
+      budget_status: budgetStatus,
+      recommendations,
+    };
+  }
+
+  function findRecurring(data, period) {
+    const all = [];
+    for (const [p, s] of Object.entries(data.statements)) {
+      for (const t of s.transactions) if (t.amount > 0) all.push({ p, ...t, key: normalizeMerchant(t.merchant) });
+    }
+    const groups = {};
+    for (const r of all) (groups[r.key] = groups[r.key] || []).push(r);
+    const out = [];
+    for (const [k, items] of Object.entries(groups)) {
+      const periods = new Set(items.map(i => i.p));
+      if (!periods.has(period) || periods.size < 2) continue;
+      const cur = items.filter(i => i.p === period).map(i => i.amount);
+      const prior = items.filter(i => i.p !== period).map(i => i.amount);
+      if (!prior.length) continue;
+      const avgPrior = prior.reduce((a, b) => a + b, 0) / prior.length;
+      const avgCur = cur.reduce((a, b) => a + b, 0) / cur.length;
+      if (!avgPrior) continue;
+      if (Math.abs(avgCur - avgPrior) / avgPrior <= 0.15) {
+        out.push({ merchant: k, amount: +avgCur.toFixed(2), category: items[0].category, months_seen: periods.size });
+      }
+    }
+    return out.sort((a, b) => b.amount - a.amount);
+  }
+
+  function buildRecommendations({ byCat, cnt, merch, budgets, recurring }) {
+    const recs = [];
+    // 1. Over-budget categories
+    for (const [cat, limit] of Object.entries(budgets)) {
+      const spent = byCat[cat] || 0;
+      if (spent > limit) {
+        const over = +(spent - limit).toFixed(2);
+        recs.push({
+          title: `You're $${fmt(over, false)} over budget on ${cat}`,
+          detail: `Spent $${fmt(spent, false)} against a $${fmt(limit, false)} budget. Cap remaining ${cat} at $${fmt(limit, false)}/mo to stay on plan.`,
+          estimated_monthly_savings: over, category: cat,
+        });
+      }
+    }
+    // 2. Coffee
+    const cTot = byCat.Coffee || 0, cCnt = cnt.Coffee || 0;
+    if (cCnt >= 8 && cTot > 40) {
+      const avg = cTot / cCnt; const save = +(avg * Math.floor(cCnt / 2)).toFixed(2);
+      recs.push({ title: `Cut coffee runs in half, save ~$${fmt(save, false)}/mo`,
+        detail: `${cCnt} coffee charges this period averaging $${fmt(avg, false)} each. Brewing at home for half of them recovers $${fmt(save, false)}/mo.`,
+        estimated_monthly_savings: save, category: "Coffee" });
+    }
+    // 3. Dining vs groceries
+    const din = byCat.Dining || 0, gro = byCat.Groceries || 0;
+    if (din > 200 && (gro === 0 || din > 1.5 * gro)) {
+      const target = +(din * 0.7).toFixed(2); const save = +(din - target).toFixed(2);
+      recs.push({ title: `Dining is your biggest lever — target $${fmt(target, false)}/mo`,
+        detail: `You spent $${fmt(din, false)} eating out vs $${fmt(gro, false)} on groceries. Replacing 30% of dining with home cooking saves ~$${fmt(save, false)}/mo.`,
+        estimated_monthly_savings: save, category: "Dining" });
+    }
+    // 4. Subscriptions
+    const subs = recurring.filter(r => r.category === "Subscriptions");
+    if (subs.length) {
+      const total = +subs.reduce((s, r) => s + r.amount, 0).toFixed(2);
+      const names = subs.slice(0, 5).map(r => titleCase(r.merchant)).join(", ");
+      const save = +(total * 0.25).toFixed(2);
+      recs.push({ title: `Audit $${fmt(total, false)}/mo in subscriptions`,
+        detail: `Recurring: ${names}${subs.length > 5 ? "…" : ""}. Cancelling unused ones recovers ~$${fmt(save, false)}/mo.`,
+        estimated_monthly_savings: save, category: "Subscriptions" });
+    }
+    // 5. Rideshare
+    const ride = byCat.Rideshare || 0, rCnt = cnt.Rideshare || 0;
+    if (rCnt >= 8 && ride > 100) {
+      const avg = ride / rCnt; const swaps = Math.floor(rCnt / 4); const save = +(avg * swaps).toFixed(2);
+      recs.push({ title: `Swap 1 Uber/Lyft per week for transit, save ~$${fmt(save, false)}/mo`,
+        detail: `${rCnt} rideshare trips averaging $${fmt(avg, false)}. Replacing ${swaps} of them with transit/walking saves ~$${fmt(save, false)}/mo.`,
+        estimated_monthly_savings: save, category: "Rideshare" });
+    }
+    // 6. Top merchant concentration
+    const total = Object.values(byCat).reduce((a, b) => a + b, 0);
+    if (total > 0) {
+      const top = Object.values(merch).sort((a, b) => b.total - a.total).slice(0, 3);
+      for (const m of top) {
+        const share = m.total / total;
+        if (share > 0.15 && !["Utilities", "Travel"].includes(m.category)) {
+          const save = +(m.total * 0.2).toFixed(2);
+          recs.push({ title: `${titleCase(m.merchant)} is ${(share*100).toFixed(0)}% of your spend`,
+            detail: `$${fmt(m.total, false)} across ${m.count} charges this period. A 20% pullback here saves ~$${fmt(save, false)}/mo.`,
+            estimated_monthly_savings: save, category: m.category });
+          break;
+        }
+      }
+    }
+    // 7. Fees
+    const fees = byCat.Fees || 0;
+    if (fees > 0) {
+      recs.push({ title: `You paid $${fmt(fees, false)} in fees — call Amex`,
+        detail: `Late fees, foreign-transaction fees, and interest are often waivable on first request. Worth a 10-minute phone call.`,
+        estimated_monthly_savings: fees, category: "Fees" });
+    }
+    const seen = new Set();
+    return recs.sort((a, b) => b.estimated_monthly_savings - a.estimated_monthly_savings)
+      .filter(r => !seen.has(r.title) && seen.add(r.title));
+  }
+
+  function buildProjection(data) {
+    const periodsAll = Object.keys(data.statements).sort().reverse();
+    const byCatPeriod = {};
+    for (const p of periodsAll) {
+      for (const t of data.statements[p].transactions) {
+        if (t.amount <= 0) continue;
+        (byCatPeriod[t.category] = byCatPeriod[t.category] || {});
+        byCatPeriod[t.category][p] = (byCatPeriod[t.category][p] || 0) + t.amount;
+      }
+    }
+    const out = {};
+    for (const cat of CATEGORY_ORDER) {
+      const map = byCatPeriod[cat]; if (!map) continue;
+      const recent = periodsAll.slice(0, 3).map(p => map[p] || 0).filter(v => v > 0);
+      if (!recent.length) continue;
+      const avg = recent.reduce((a, b) => a + b, 0) / recent.length;
+      out[cat] = { trailing_avg: +avg.toFixed(2), suggested_budget: +(avg * 1.05).toFixed(2), months_used: recent.length };
+    }
+    return out;
+  }
+
+  function buildTrend(data) {
+    const periods = Object.keys(data.statements).sort();
+    const byCat = {};
+    for (const p of periods) {
+      for (const t of data.statements[p].transactions) {
+        if (t.amount <= 0) continue;
+        (byCat[t.category] = byCat[t.category] || {});
+        byCat[t.category][p] = (byCat[t.category][p] || 0) + t.amount;
+      }
+    }
+    const series = CATEGORY_ORDER.filter(c => byCat[c]).map(c => ({
+      category: c, values: periods.map(p => +(byCat[c][p] || 0).toFixed(2)),
+    }));
+    const totals = periods.map((_, i) => +series.reduce((s, x) => s + x.values[i], 0).toFixed(2));
+    return { periods, totals, series };
+  }
+
+  // ============ UI ============
+  const $ = (s) => document.querySelector(s);
+  const $$ = (s) => document.querySelectorAll(s);
+  const escapeHtml = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const formatPeriod = (p) => { const [y, m] = p.split("-"); return new Date(+y, +m - 1, 1).toLocaleString(undefined, { month: "long", year: "numeric" }); };
+
+  const state = { data: Store.load(), selected: null };
+  const charts = {};
+
+  // Tabs
+  $$(".tab[data-tab]").forEach(b => b.addEventListener("click", () => {
+    $$(".tab[data-tab]").forEach(x => x.classList.remove("active"));
+    b.classList.add("active");
+    const t = b.dataset.tab;
+    $$(".tab-panel").forEach(p => p.classList.remove("active"));
+    $(`#tab-${t}`).classList.add("active");
+    if (t === "trends") renderTrends();
+    if (t === "budget") renderBudgetEditor();
+    if (t === "transactions") renderTransactions();
+  }));
+
+  // Auth
+  function showLogin() { $("#loginOverlay").hidden = false; setTimeout(() => $("#loginPassword").focus(), 0); }
+  function hideLogin() { $("#loginOverlay").hidden = true; }
+  $("#loginForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    if ($("#loginPassword").value === PASSWORD) {
+      Store.setAuthed(true); $("#loginPassword").value = ""; $("#loginError").textContent = "";
+      hideLogin(); init();
+    } else {
+      $("#loginError").textContent = "Incorrect password";
+      setTimeout(() => {}, 250);
+    }
+  });
+  $("#logoutBtn").addEventListener("click", () => { Store.setAuthed(false); showLogin(); });
+
+  // Month switcher
+  $("#monthSelect").addEventListener("change", (e) => { state.selected = e.target.value; renderDashboard(); });
+
+  // Upload
+  $("#uploadBtn").addEventListener("click", async () => {
+    const file = $("#pdfInput").files[0];
+    if (!file) { $("#uploadStatus").textContent = "Pick a PDF first."; return; }
+    $("#uploadStatus").textContent = "Parsing…";
+    try {
+      const parsed = await parseAmexPdf(file);
+      const period = $("#periodInput").value || parsed.period;
+      if (!parsed.transactions.length) {
+        $("#uploadStatus").textContent = "✗ No transactions detected in that PDF. The Amex layout may be unusual.";
+        return;
+      }
+      state.data.statements[period] = {
+        uploadedAt: new Date().toISOString(),
+        sourceFilename: file.name,
+        statement_total: parsed.statement_total,
+        transactions: parsed.transactions,
+      };
+      Store.save(state.data);
+      state.selected = period;
+      $("#uploadStatus").textContent = `✓ ${formatPeriod(period)}: ${parsed.transactions.length} transactions, $${fmt(parsed.statement_total, false)}`;
+      $("#pdfInput").value = ""; $("#periodInput").value = "";
+      renderMonthList(); renderDashboard();
+    } catch (err) {
+      console.error(err);
+      $("#uploadStatus").textContent = "✗ " + err.message;
+    }
+  });
+
+  // Settings
+  $("#exportBtn").addEventListener("click", () => {
+    const blob = new Blob([JSON.stringify(state.data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url;
+    a.download = `finance-tracker-${new Date().toISOString().slice(0,10)}.json`;
+    a.click(); URL.revokeObjectURL(url);
+  });
+  $("#importInput").addEventListener("change", async (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    const text = await f.text();
+    try {
+      const obj = JSON.parse(text);
+      if (!obj.statements || !obj.budgets) throw new Error("invalid file");
+      if (!confirm("Import this file? It will replace your current data.")) return;
+      state.data = obj; Store.save(obj);
+      state.selected = Object.keys(obj.statements).sort().reverse()[0] || null;
+      renderMonthList(); renderDashboard();
+    } catch (err) { alert("Bad file: " + err.message); }
+  });
+  $("#deleteMonthBtn").addEventListener("click", () => {
+    if (!state.selected) return;
+    if (!confirm(`Delete ${formatPeriod(state.selected)}?`)) return;
+    delete state.data.statements[state.selected];
+    Store.save(state.data);
+    const remaining = Object.keys(state.data.statements).sort().reverse();
+    state.selected = remaining[0] || null;
+    renderMonthList(); renderDashboard();
+  });
+  $("#resetBtn").addEventListener("click", () => {
+    if (!confirm("Wipe all statements and budgets? This cannot be undone.")) return;
+    state.data = { statements: {}, budgets: {} };
+    Store.save(state.data);
+    state.selected = null;
+    renderMonthList(); renderDashboard();
+  });
+
+  // Render
+  function renderMonthList() {
+    const sel = $("#monthSelect");
+    sel.innerHTML = "";
+    const periods = Object.keys(state.data.statements).sort().reverse();
+    if (!periods.length) {
+      const o = document.createElement("option"); o.value = ""; o.textContent = "— upload a statement to begin —";
+      sel.appendChild(o);
+      state.selected = null;
+      return;
+    }
+    for (const p of periods) {
+      const s = state.data.statements[p];
+      const o = document.createElement("option");
+      o.value = p; o.textContent = `${formatPeriod(p)} — $${fmt(s.statement_total, false)} (${s.transactions.filter(t=>t.amount>0).length} txns)`;
+      sel.appendChild(o);
+    }
+    if (!state.selected || !periods.includes(state.selected)) state.selected = periods[0];
+    sel.value = state.selected;
+  }
+
+  function renderDashboard() {
+    if (!state.selected) {
+      ["#kpiTotal","#kpiCount","#kpiNet","#kpiTopCat"].forEach(s => $(s).textContent = "—");
+      $("#recommendations").innerHTML = '<div class="empty">Upload an Amex PDF to see your report.</div>';
+      $("#merchantTable tbody").innerHTML = "";
+      $("#recurringTable tbody").innerHTML = "";
+      $("#budgetBars").innerHTML = "";
+      if (charts.cat) { charts.cat.destroy(); charts.cat = null; }
+      return;
+    }
+    const r = buildReport(state.data, state.selected);
+    $("#kpiTotal").textContent = fmt(r.total_spend);
+    $("#kpiCount").textContent = r.transaction_count;
+    $("#kpiNet").textContent = fmt(r.net);
+    const top = r.by_category[0]; $("#kpiTopCat").textContent = top ? `${top.category} — ${fmt(top.total)}` : "—";
+
+    const ctx = document.getElementById("categoryChart");
+    if (charts.cat) charts.cat.destroy();
+    charts.cat = new Chart(ctx, {
+      type: "doughnut",
+      data: {
+        labels: r.by_category.map(c => c.category),
+        datasets: [{ data: r.by_category.map(c => c.total),
+          backgroundColor: ["#6ee7b7","#60a5fa","#fbbf24","#f87171","#a78bfa","#f472b6","#34d399","#fb923c","#22d3ee","#94a3b8","#facc15","#e879f9","#4ade80","#fcd34d"],
+          borderColor: "#0f1115", borderWidth: 2 }],
+      },
+      options: { plugins: { legend: { position: "right", labels: { color: "#e7eaf0", boxWidth: 12 } } }, responsive: true },
+    });
+
+    const tb = $("#merchantTable tbody"); tb.innerHTML = "";
+    for (const m of r.top_merchants) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${escapeHtml(m.merchant)}</td><td>${m.category}</td><td>${m.count}</td><td class="r">${fmt(m.total)}</td>`;
+      tb.appendChild(tr);
+    }
+    if (!r.top_merchants.length) tb.innerHTML = '<tr><td colspan="4" class="empty">No charges yet.</td></tr>';
+
+    const rec = $("#recommendations"); rec.innerHTML = "";
+    if (!r.recommendations.length) {
+      rec.innerHTML = '<div class="empty">No specific cuts found — your spending looks balanced this month.</div>';
+    } else for (const x of r.recommendations) {
+      const div = document.createElement("div"); div.className = "rec";
+      div.innerHTML = `<div class="save">${fmt(x.estimated_monthly_savings)}</div>
+        <div class="body"><div class="title">${escapeHtml(x.title)}<span class="pill">${x.category}</span></div>
+        <div class="detail">${escapeHtml(x.detail)}</div></div>`;
+      rec.appendChild(div);
+    }
+
+    const rt = $("#recurringTable tbody"); rt.innerHTML = "";
+    for (const m of r.recurring_charges) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${escapeHtml(m.merchant)}</td><td>${m.category}</td><td>${m.months_seen}</td><td class="r">${fmt(m.amount)}</td>`;
+      rt.appendChild(tr);
+    }
+    if (!r.recurring_charges.length) rt.innerHTML = '<tr><td colspan="4" class="empty">Need 2+ months of data to detect recurring charges.</td></tr>';
+
+    const bb = $("#budgetBars"); bb.innerHTML = "";
+    if (!r.budget_status.length) bb.innerHTML = '<div class="empty">No budgets set yet — try the Budget tab.</div>';
+    else for (const b of r.budget_status) {
+      const pct = Math.min(b.pct_used, 100);
+      const cls = b.pct_used > 100 ? "over" : b.pct_used > 85 ? "warn" : "";
+      const div = document.createElement("div"); div.className = "budget-row";
+      div.innerHTML = `<div>${b.category}</div>
+        <div class="bar-wrap"><div class="bar ${cls}" style="width:${pct}%"></div></div>
+        <div class="pct">${fmt(b.spent)} / ${fmt(b.limit)} (${b.pct_used}%)</div>`;
+      bb.appendChild(div);
+    }
+  }
+
+  function renderTransactions() {
+    const tb = $("#txnTable tbody"); tb.innerHTML = "";
+    if (!state.selected) { tb.innerHTML = '<tr><td colspan="4" class="empty">No month selected.</td></tr>'; return; }
+    const txns = [...state.data.statements[state.selected].transactions]
+      .sort((a, b) => b.date.localeCompare(a.date));
+    for (const t of txns) {
+      const tr = document.createElement("tr");
+      const opts = CATEGORY_ORDER.map(c => `<option value="${c}" ${c === t.category ? "selected" : ""}>${c}</option>`).join("");
+      tr.innerHTML = `<td>${t.date}</td><td>${escapeHtml(t.merchant)}</td>
+        <td><select class="cat-select" data-id="${t.id}">${opts}</select></td>
+        <td class="r" style="color:${t.amount < 0 ? '#6ee7b7' : 'inherit'}">${fmt(t.amount)}</td>`;
+      tb.appendChild(tr);
+    }
+    $$(".cat-select").forEach(s => s.addEventListener("change", (e) => {
+      const id = e.target.dataset.id;
+      for (const p of Object.values(state.data.statements)) {
+        const tx = p.transactions.find(x => x.id === id);
+        if (tx) { tx.category = e.target.value; break; }
+      }
+      Store.save(state.data); renderDashboard();
+    }));
+  }
+
+  function renderBudgetEditor() {
+    const ed = $("#budgetEditor"); ed.innerHTML = "";
+    const proj = buildProjection(state.data);
+    for (const cat of CATEGORY_ORDER) {
+      const cur = state.data.budgets[cat] ?? "";
+      const p = proj[cat];
+      const row = document.createElement("div"); row.className = "budget-row";
+      row.style.gridTemplateColumns = "120px 110px 1fr";
+      row.innerHTML = `<div>${cat}</div>
+        <div><input type="number" min="0" step="10" data-cat="${cat}" value="${cur}" placeholder="0" inputmode="decimal"/></div>
+        <div class="hint">${p ? `3-mo avg ${fmt(p.trailing_avg)} · suggested ${fmt(p.suggested_budget)} ` : "no history yet"}
+          ${p ? `<button class="btn-secondary apply-suggest" data-cat="${cat}" data-val="${p.suggested_budget}" style="margin-left:6px;padding:2px 8px;font-size:11px;">use</button>` : ""}
+        </div>`;
+      ed.appendChild(row);
+    }
+    $$(".apply-suggest").forEach(b => b.addEventListener("click", () => {
+      ed.querySelector(`input[data-cat="${b.dataset.cat}"]`).value = b.dataset.val;
+    }));
+  }
+  $("#saveBudgets").addEventListener("click", () => {
+    const inputs = $("#budgetEditor").querySelectorAll("input[data-cat]");
+    const newBudgets = {};
+    inputs.forEach(i => { const v = parseFloat(i.value); if (!isNaN(v) && v > 0) newBudgets[i.dataset.cat] = v; });
+    state.data.budgets = newBudgets; Store.save(state.data);
+    $("#budgetStatus").textContent = "✓ Saved";
+    renderDashboard();
+  });
+
+  function renderTrends() {
+    const t = buildTrend(state.data);
+    const ctx1 = document.getElementById("trendChart");
+    if (charts.trend) charts.trend.destroy();
+    charts.trend = new Chart(ctx1, {
+      type: "bar",
+      data: { labels: t.periods.map(formatPeriod),
+        datasets: [{ label: "Total spend", data: t.totals, backgroundColor: "#60a5fa" }] },
+      options: { plugins: { legend: { labels: { color: "#e7eaf0" } } },
+        scales: { x: { ticks: { color: "#8b94a3" }, grid: { color: "#2a313d" } },
+                  y: { ticks: { color: "#8b94a3" }, grid: { color: "#2a313d" } } } },
+    });
+    const ctx2 = document.getElementById("categoryTrendChart");
+    if (charts.catTrend) charts.catTrend.destroy();
+    const palette = ["#6ee7b7","#60a5fa","#fbbf24","#f87171","#a78bfa","#f472b6","#34d399","#fb923c","#22d3ee","#94a3b8","#facc15","#e879f9","#4ade80","#fcd34d"];
+    charts.catTrend = new Chart(ctx2, {
+      type: "line",
+      data: { labels: t.periods.map(formatPeriod),
+        datasets: t.series.map((s, i) => ({ label: s.category, data: s.values,
+          borderColor: palette[i % palette.length], backgroundColor: palette[i % palette.length] + "33",
+          tension: 0.3, fill: false })) },
+      options: { plugins: { legend: { labels: { color: "#e7eaf0" } } },
+        scales: { x: { ticks: { color: "#8b94a3" }, grid: { color: "#2a313d" } },
+                  y: { ticks: { color: "#8b94a3" }, grid: { color: "#2a313d" } } } },
+    });
+  }
+
+  function init() {
+    state.data = Store.load();
+    const periods = Object.keys(state.data.statements).sort().reverse();
+    state.selected = periods[0] || null;
+    renderMonthList();
+    renderDashboard();
+  }
+
+  if (Store.isAuthed()) { hideLogin(); init(); } else { showLogin(); }
+  </script>
+</body>
+</html>
