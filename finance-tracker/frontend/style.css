@@ -95,3 +95,18 @@ input[type="file"]::file-selector-button { background: var(--surface-2); color: 
   padding: 2px 6px; border-radius: 4px; font-size: 12px; }
 
 .empty { color: var(--muted); padding: 24px; text-align: center; font-size: 13px; }
+
+/* Login overlay */
+.login-overlay { position: fixed; inset: 0; background: var(--bg); display: flex;
+  align-items: center; justify-content: center; z-index: 100; padding: 20px; }
+.login-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  padding: 28px; width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 14px; }
+.login-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+.login-brand h1 { margin: 0; font-size: 16px; font-weight: 600; }
+.login-card label { display: flex; flex-direction: column; gap: 6px; color: var(--muted); font-size: 12px;
+  text-transform: uppercase; letter-spacing: 0.4px; }
+.login-card input { background: var(--bg); color: var(--text); border: 1px solid var(--border);
+  padding: 10px 12px; border-radius: 8px; font-size: 15px; }
+.login-card input:focus { outline: none; border-color: var(--accent); }
+.login-card .btn-primary { padding: 10px 14px; font-size: 14px; }
+.login-error { color: var(--danger); font-size: 13px; min-height: 18px; }

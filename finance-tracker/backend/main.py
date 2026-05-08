@@ -4,12 +4,21 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+import time
+
+from fastapi import Cookie, Depends, FastAPI, File, HTTPException, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from auth import (
+    check_password,
+    clear_session_cookie,
+    require_auth,
+    set_session_cookie,
+    verify_token,
+)
 from categorizer import CATEGORY_ORDER, categorize
 from db import get_conn, init_db
 from insights import build_report
@@ -46,9 +55,35 @@ class TxnEdit(BaseModel):
     category: str
 
 
-# -------- Endpoints --------
+class LoginBody(BaseModel):
+    password: str
 
-@app.post("/api/upload")
+
+# -------- Auth endpoints --------
+
+@app.post("/api/login")
+def login(body: LoginBody, response: Response) -> dict[str, Any]:
+    if not check_password(body.password):
+        time.sleep(0.25)  # mild brute-force throttle
+        raise HTTPException(status_code=401, detail="Incorrect password")
+    set_session_cookie(response)
+    return {"ok": True}
+
+
+@app.post("/api/logout")
+def logout(response: Response) -> dict[str, Any]:
+    clear_session_cookie(response)
+    return {"ok": True}
+
+
+@app.get("/api/me")
+def me(ft_session: str | None = Cookie(default=None)) -> dict[str, Any]:
+    return {"authenticated": verify_token(ft_session)}
+
+
+# -------- Data endpoints (all require auth) --------
+
+@app.post("/api/upload", dependencies=[Depends(require_auth)])
 async def upload_statement(file: UploadFile = File(...), period: str | None = None) -> dict[str, Any]:
     if not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Please upload a PDF file.")
@@ -105,7 +140,7 @@ async def upload_statement(file: UploadFile = File(...), period: str | None = No
     }
 
 
-@app.get("/api/months")
+@app.get("/api/months", dependencies=[Depends(require_auth)])
 def list_months() -> list[dict[str, Any]]:
     with get_conn() as conn:
         rows = conn.execute(
@@ -123,7 +158,7 @@ def list_months() -> list[dict[str, Any]]:
         return [dict(r) for r in rows]
 
 
-@app.get("/api/months/{period}")
+@app.get("/api/months/{period}", dependencies=[Depends(require_auth)])
 def get_month(period: str) -> dict[str, Any]:
     with get_conn() as conn:
         report = build_report(conn, period)
@@ -132,7 +167,7 @@ def get_month(period: str) -> dict[str, Any]:
     return report
 
 
-@app.get("/api/months/{period}/transactions")
+@app.get("/api/months/{period}/transactions", dependencies=[Depends(require_auth)])
 def list_transactions(period: str) -> list[dict[str, Any]]:
     with get_conn() as conn:
         rows = conn.execute(
@@ -148,7 +183,7 @@ def list_transactions(period: str) -> list[dict[str, Any]]:
     return [dict(r) for r in rows]
 
 
-@app.patch("/api/transactions/{txn_id}")
+@app.patch("/api/transactions/{txn_id}", dependencies=[Depends(require_auth)])
 def update_transaction(txn_id: int, body: TxnEdit) -> dict[str, Any]:
     if body.category not in CATEGORY_ORDER:
         raise HTTPException(status_code=400, detail=f"Unknown category. Allowed: {CATEGORY_ORDER}")
@@ -159,7 +194,7 @@ def update_transaction(txn_id: int, body: TxnEdit) -> dict[str, Any]:
     return {"ok": True}
 
 
-@app.delete("/api/months/{period}")
+@app.delete("/api/months/{period}", dependencies=[Depends(require_auth)])
 def delete_month(period: str) -> dict[str, Any]:
     with get_conn() as conn:
         cur = conn.execute("DELETE FROM statements WHERE period = ?", (period,))
@@ -168,7 +203,7 @@ def delete_month(period: str) -> dict[str, Any]:
     return {"ok": True}
 
 
-@app.get("/api/budgets")
+@app.get("/api/budgets", dependencies=[Depends(require_auth)])
 def get_budgets() -> dict[str, Any]:
     with get_conn() as conn:
         rows = conn.execute("SELECT category, monthly_limit FROM budgets").fetchall()
@@ -176,7 +211,7 @@ def get_budgets() -> dict[str, Any]:
     return {"categories": CATEGORY_ORDER, "budgets": budgets}
 
 
-@app.put("/api/budgets")
+@app.put("/api/budgets", dependencies=[Depends(require_auth)])
 def set_budgets(body: BudgetUpdate) -> dict[str, Any]:
     with get_conn() as conn:
         conn.execute("DELETE FROM budgets")
@@ -192,7 +227,7 @@ def set_budgets(body: BudgetUpdate) -> dict[str, Any]:
     return {"ok": True}
 
 
-@app.get("/api/budgets/projection")
+@app.get("/api/budgets/projection", dependencies=[Depends(require_auth)])
 def budget_projection() -> dict[str, Any]:
     """Project next month's spend per category from a 3-month trailing average."""
     with get_conn() as conn:
@@ -229,7 +264,7 @@ def budget_projection() -> dict[str, Any]:
     return {"projections": sorted(projections, key=lambda x: -x["trailing_avg"]), "total_months_tracked": len(periods_seen)}
 
 
-@app.get("/api/trend")
+@app.get("/api/trend", dependencies=[Depends(require_auth)])
 def spending_trend() -> dict[str, Any]:
     """Month-over-month totals + per-category trend across all uploaded months."""
     with get_conn() as conn:

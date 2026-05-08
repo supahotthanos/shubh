@@ -49,6 +49,20 @@ finance-tracker/
 **Storage:** SQLite. Three tables — `statements` (one per month), `transactions`,
 `budgets` (one row per category).
 
+## Auth
+
+The whole app is gated by a single password. Default: **`Shubh2007$`**.
+
+Override it (recommended once you deploy somewhere) with an env var before starting:
+
+```bash
+FINANCE_PASSWORD='your-new-password' ./run.sh
+```
+
+A signed session cookie (HMAC over a 30-day expiry) is set on successful login. The
+HMAC secret is auto-generated at `data/secret.key` on first run and is git-ignored.
+There's a small (250 ms) sleep on bad login attempts to slow brute force.
+
 ## Run it
 
 ```bash

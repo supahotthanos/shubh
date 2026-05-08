@@ -31,8 +31,13 @@ $$(".tab").forEach((b) => {
 async function api(path, opts = {}) {
   const res = await fetch(API + path, {
     headers: { "Content-Type": "application/json" },
+    credentials: "same-origin",
     ...opts,
   });
+  if (res.status === 401) {
+    showLogin();
+    throw new Error("Not authenticated");
+  }
   if (!res.ok) {
     let msg = res.statusText;
     try { msg = (await res.json()).detail || msg; } catch {}
@@ -40,6 +45,53 @@ async function api(path, opts = {}) {
   }
   return res.json();
 }
+
+// ---------- Auth ----------
+function showLogin() {
+  $("#loginOverlay").hidden = false;
+  $("#loginPassword").value = "";
+  setTimeout(() => $("#loginPassword").focus(), 0);
+}
+function hideLogin() {
+  $("#loginOverlay").hidden = true;
+}
+
+async function checkAuth() {
+  try {
+    const r = await fetch("/api/me", { credentials: "same-origin" }).then((x) => x.json());
+    return !!r.authenticated;
+  } catch {
+    return false;
+  }
+}
+
+$("#loginForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const pw = $("#loginPassword").value;
+  $("#loginError").textContent = "";
+  try {
+    const res = await fetch("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ password: pw }),
+    });
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      $("#loginError").textContent = j.detail || "Sign-in failed";
+      return;
+    }
+    hideLogin();
+    await loadMonths();
+  } catch (err) {
+    $("#loginError").textContent = err.message;
+  }
+});
+
+$("#logoutBtn").addEventListener("click", async () => {
+  await fetch("/api/logout", { method: "POST", credentials: "same-origin" });
+  showLogin();
+});
 
 // ---------- Months ----------
 async function loadMonths(preferredPeriod = null) {
@@ -92,7 +144,8 @@ $("#uploadForm").addEventListener("submit", async (e) => {
   const url = period ? `/api/upload?period=${period}` : "/api/upload";
   $("#uploadStatus").textContent = "Parsing…";
   try {
-    const result = await fetch(API + url, { method: "POST", body: fd }).then(async (r) => {
+    const result = await fetch(API + url, { method: "POST", body: fd, credentials: "same-origin" }).then(async (r) => {
+      if (r.status === 401) { showLogin(); throw new Error("Not authenticated"); }
       if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
       return r.json();
     });
@@ -346,4 +399,11 @@ function escapeHtml(s) {
 }
 
 // ---------- Boot ----------
-loadMonths();
+(async () => {
+  if (await checkAuth()) {
+    hideLogin();
+    loadMonths();
+  } else {
+    showLogin();
+  }
+})();

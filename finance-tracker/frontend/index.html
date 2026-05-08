@@ -8,6 +8,18 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
 <body>
+  <!-- Login overlay (shown until authenticated) -->
+  <div id="loginOverlay" class="login-overlay" hidden>
+    <form id="loginForm" class="login-card">
+      <div class="login-brand"><span class="dot"></span><h1>Finance Tracker</h1></div>
+      <label>Password
+        <input type="password" id="loginPassword" autocomplete="current-password" required autofocus />
+      </label>
+      <button type="submit" class="btn-primary">Sign in</button>
+      <div id="loginError" class="login-error"></div>
+    </form>
+  </div>
+
   <header class="topbar">
     <div class="brand">
       <span class="dot"></span>
@@ -18,6 +30,7 @@
       <button data-tab="transactions" class="tab">Transactions</button>
       <button data-tab="budget" class="tab">Budget</button>
       <button data-tab="trends" class="tab">Trends</button>
+      <button id="logoutBtn" class="tab" title="Sign out">Sign out</button>
     </nav>
   </header>
 
